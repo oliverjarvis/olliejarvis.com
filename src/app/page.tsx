@@ -86,11 +86,11 @@ export default function Home() {
       </div>
       
       <p className="max-w-2xl text-left mb-8">
-        I'm a passionate data scientist, web developer, and full-stack engineer with a love for
+        I&apos;m a passionate data scientist, web developer, and full-stack engineer with a love for
         working on new projects and exploring various programming challenges. My expertise spans
-        across data analysis, web technologies, and end-to-end system development. I'm particularly
+        across data analysis, web technologies, and end-to-end system development. I&apos;m particularly
         enthusiastic about conducting research and engaging in independent studies, always seeking
-        to expand my knowledge and push the boundaries of what's possible in technology.
+        to expand my knowledge and push the boundaries of what&apos;s possible in technology.
       </p>
       
       {latestArticle && (
