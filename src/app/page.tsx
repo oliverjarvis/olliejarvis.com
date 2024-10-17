@@ -19,7 +19,7 @@ import Parser from 'rss-parser';
 export default function Home() {
   const [openModal, setOpenModal] = useState<string | null>(null);
 
-  const [latestArticle, setLatestArticle] = useState(null);
+  const [latestArticle, setLatestArticle] = useState<{title: string; link: string}|null>(null);
 
   useEffect(() => {
     async function fetchArticle() {
