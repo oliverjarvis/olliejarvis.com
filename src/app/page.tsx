@@ -74,7 +74,7 @@ export default function Home() {
           <span className="font-semibold">BSc Cognitive Science and Mathematics</span> @ Aarhus University, DK
         </p>
         <div className="flex flex-col mt-4 space-y-2">
-          <Link href="https://twitter.com/olliejarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-blue-400 hover:text-blue-500 transition-colors">
+          <Link href="https://twitter.com/olliesjarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-blue-400 hover:text-blue-500 transition-colors">
             <Twitter size={20} />
             <span>twitter.com/olliejarvis</span>
           </Link>
