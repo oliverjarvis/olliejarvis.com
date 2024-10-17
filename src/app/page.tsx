@@ -76,7 +76,7 @@ export default function Home() {
         <div className="flex flex-col mt-4 space-y-2">
           <Link href="https://twitter.com/olliesjarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-blue-400 hover:text-blue-500 transition-colors">
             <Twitter size={20} />
-            <span>twitter.com/olliejarvis</span>
+            <span>twitter.com/olliesjarvis</span>
           </Link>
           <Link href="https://github.com/oliverjarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors">
             <Github size={20} />
