@@ -189,9 +189,7 @@ export default function TokenWord({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Play the word audio
     speakJapanese(token.surface_form);
-    // Toggle popover
     if (showPopover) {
       setShowPopover(false);
     } else {

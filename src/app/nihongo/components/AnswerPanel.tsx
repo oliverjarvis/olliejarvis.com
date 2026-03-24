@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AnswerMode, ConversationExchange, KuromojiToken, VocabWord } from "../types";
-import { Shuffle, PenLine, Lightbulb, Mic } from "lucide-react";
+import { Shuffle, PenLine, Lightbulb, Mic, Plus, X as XIcon } from "lucide-react";
 import { speakJapanese } from "./AudioButton";
 import TokenizedText from "./TokenizedText";
 
@@ -352,21 +352,29 @@ export default function AnswerPanel({
             </span>
           )}
           {selectedParts.map((part, i) => (
-            <button
+            <div
               key={`sel-${i}`}
-              onClick={() => handleDeselect(i)}
-              className="px-4 py-2 bg-sky-500 text-white rounded-xl text-sm font-bold hover:bg-sky-600 active:bg-sky-700 transition-colors shadow-md shadow-sky-200"
+              className="flex items-center bg-sky-500 rounded-xl shadow-md shadow-sky-200 overflow-hidden"
             >
-              <TokenizedText
-                text={part}
-                vocabulary={vocabulary}
-                onAddToSRS={onAddToSRS}
-                tokenCache={tokenCache}
-                onTokenized={onTokenized}
-                showAudio={false}
-                darkBg={true}
-              />
-            </button>
+              <span className="pl-3 py-2 text-sm font-bold text-white">
+                <TokenizedText
+                  text={part}
+                  vocabulary={vocabulary}
+                  onAddToSRS={onAddToSRS}
+                  tokenCache={tokenCache}
+                  onTokenized={onTokenized}
+                  showAudio={false}
+                  darkBg={true}
+                />
+              </span>
+              <button
+                onClick={() => handleDeselect(i)}
+                className="px-3 py-2 ml-1 text-sky-200 hover:text-white hover:bg-sky-600 active:bg-sky-700 transition-colors self-stretch flex items-center border-l border-sky-400"
+                title="Remove"
+              >
+                <XIcon size={14} />
+              </button>
+            </div>
           ))}
           {liveTranscript && (
             <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-sm font-medium italic animate-pulse">
@@ -380,12 +388,9 @@ export default function AnswerPanel({
           {availableParts.map((part, i) => (
             <div
               key={`avail-${i}`}
-              className="flex items-center bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-sky-400 hover:bg-sky-50 transition-colors shadow-sm overflow-hidden"
+              className="flex items-center bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 shadow-sm overflow-hidden"
             >
-              <button
-                onClick={() => handleSelect(i)}
-                className="px-4 py-2"
-              >
+              <span className="pl-3 py-2">
                 <TokenizedText
                   text={part}
                   vocabulary={vocabulary}
@@ -394,6 +399,13 @@ export default function AnswerPanel({
                   onTokenized={onTokenized}
                   showAudio={false}
                 />
+              </span>
+              <button
+                onClick={() => handleSelect(i)}
+                className="px-3 py-2 ml-1 text-sky-400 hover:text-sky-600 hover:bg-sky-50 active:bg-sky-100 transition-colors self-stretch flex items-center border-l border-gray-200"
+                title="Add"
+              >
+                <Plus size={14} />
               </button>
             </div>
           ))}
@@ -463,12 +475,9 @@ export default function AnswerPanel({
           {availableParts.map((part, i) => (
             <div
               key={`hint-${i}`}
-              className="flex items-center bg-white border-2 border-amber-300 rounded-xl text-sm font-bold text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-colors shadow-sm overflow-hidden"
+              className="flex items-center bg-white border-2 border-amber-300 rounded-xl text-sm font-bold text-amber-700 shadow-sm overflow-hidden"
             >
-              <button
-                onClick={() => handleInsert(i)}
-                className="px-4 py-2"
-              >
+              <span className="pl-3 py-2">
                 <TokenizedText
                   text={part}
                   vocabulary={vocabulary}
@@ -477,6 +486,13 @@ export default function AnswerPanel({
                   onTokenized={onTokenized}
                   showAudio={false}
                 />
+              </span>
+              <button
+                onClick={() => handleInsert(i)}
+                className="px-3 py-2 ml-1 text-amber-400 hover:text-amber-600 hover:bg-amber-50 active:bg-amber-100 transition-colors self-stretch flex items-center border-l border-amber-200"
+                title="Insert"
+              >
+                <Plus size={14} />
               </button>
             </div>
           ))}

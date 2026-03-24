@@ -30,6 +30,8 @@ import {
   Trophy,
   MessageCircle,
   Palette,
+  Wand2,
+  Loader2,
 } from "lucide-react";
 import { useHighlight } from "../highlight-context";
 
@@ -81,6 +83,19 @@ export default function Game() {
   const [srsRefresh, setSrsRefresh] = useState(0);
   const [dueCount, setDueCount] = useState(0);
 
+  const [aiFeedback, setAiFeedback] = useState<{
+    isValid: boolean;
+    feedback: string;
+    grammarTip: string | null;
+  } | null>(null);
+  const [isFeedbackLoading, setIsFeedbackLoading] = useState(false);
+
+  const [aiConversations, setAiConversations] = useState<Conversation[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateTopic, setGenerateTopic] = useState("");
+  const [generateLevel, setGenerateLevel] = useState<"beginner" | "intermediate" | "advanced">("intermediate");
+  const [showGenerateForm, setShowGenerateForm] = useState(false);
+
   const [tokenCache, setTokenCache] = useState<
     Record<string, KuromojiToken[]>
   >({});
@@ -100,8 +115,44 @@ export default function Game() {
     } catch {
       /* ignore */
     }
+    try {
+      const aiSaved = localStorage.getItem("nihongo-ai-conversations");
+      if (aiSaved) setAiConversations(JSON.parse(aiSaved));
+    } catch {
+      /* ignore */
+    }
     setDueCount(getDueCards().length);
   }, []);
+
+  const allConversations = [...conversations, ...aiConversations];
+
+  const generateConversation = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/nihongo/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: generateTopic || undefined,
+          level: generateLevel,
+        }),
+      });
+      const data = await res.json();
+      if (data.conversation) {
+        const conv = data.conversation as Conversation;
+        // Ensure unique ID
+        conv.id = `ai-${Date.now()}`;
+        const updated = [...aiConversations, conv];
+        setAiConversations(updated);
+        localStorage.setItem("nihongo-ai-conversations", JSON.stringify(updated));
+        setShowGenerateForm(false);
+        setGenerateTopic("");
+      }
+    } catch (error) {
+      console.error("Generation failed:", error);
+    }
+    setIsGenerating(false);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -187,10 +238,11 @@ export default function Game() {
     setUserAnswer("");
   };
 
-  const submitAnswer = (answer: string) => {
+  const submitAnswer = async (answer: string) => {
     if (!currentConv) return;
     const exchange = currentConv.exchanges[exchangeIdx];
     setUserAnswer(answer);
+    setAiFeedback(null);
     setMessages((prev) => [
       ...prev,
       {
@@ -202,6 +254,30 @@ export default function Game() {
     ]);
     setPhase("answer_feedback");
     tokenize(answer);
+
+    // Fetch AI feedback in background
+    setIsFeedbackLoading(true);
+    try {
+      const res = await fetch("/api/nihongo/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userAnswer: answer,
+          suggestedAnswer: exchange.suggestedAnswer,
+          suggestedTranslation: exchange.suggestedAnswerTranslation,
+          context: `Speaker said: "${exchange.speakerMessage}" (${exchange.speakerMessageTranslation})`,
+        }),
+      });
+      const data = await res.json();
+      setAiFeedback(data);
+    } catch {
+      setAiFeedback({
+        isValid: true,
+        feedback: "Great effort! Keep going!",
+        grammarTip: null,
+      });
+    }
+    setIsFeedbackLoading(false);
   };
 
   const nextExchange = () => {
@@ -274,7 +350,7 @@ export default function Game() {
   // Replay view
   if (replayId) {
     const saved = savedConversations[replayId];
-    const conv = conversations.find((c) => c.id === replayId);
+    const conv = allConversations.find((c) => c.id === replayId);
     if (!saved || !conv) return null;
     const allVocab = conv.exchanges.flatMap((e) => e.vocabulary);
 
@@ -366,7 +442,7 @@ export default function Game() {
           <div className="flex-1 max-w-2xl mx-auto w-full">
             {/* Conversations as chat list */}
             <div className="bg-white sm:my-4 sm:mx-4 sm:rounded-2xl sm:shadow-lg overflow-hidden">
-              {conversations.map((conv, idx) => {
+              {allConversations.map((conv, idx) => {
                 const isSaved = !!savedConversations[conv.id];
                 const colors = LEVEL_COLORS[conv.level];
                 const avatarGradient = AVATAR_COLORS[idx % AVATAR_COLORS.length];
@@ -442,12 +518,95 @@ export default function Game() {
                     )}
 
                     {/* Divider */}
-                    {idx < conversations.length - 1 && (
+                    {idx < allConversations.length - 1 && (
                       <div className="ml-[4.25rem] border-b border-gray-100" />
                     )}
                   </div>
                 );
               })}
+            </div>
+
+            {/* Generate new conversation */}
+            <div className="sm:mx-4 mt-4 mb-6">
+              {!showGenerateForm ? (
+                <button
+                  onClick={() => setShowGenerateForm(true)}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-extrabold text-base hover:from-violet-600 hover:to-purple-700 active:from-violet-700 active:to-purple-800 transition-all shadow-lg shadow-violet-200"
+                >
+                  <Wand2 size={20} />
+                  Generate New Conversation
+                </button>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-lg p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-extrabold text-lg text-gray-800 flex items-center gap-2">
+                      <Wand2 size={18} className="text-violet-500" />
+                      AI Conversation
+                    </h3>
+                    <button
+                      onClick={() => setShowGenerateForm(false)}
+                      className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Topic (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={generateTopic}
+                      onChange={(e) => setGenerateTopic(e.target.value)}
+                      placeholder="e.g. asking for directions, at the doctor, buying clothes..."
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Level
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["beginner", "intermediate", "advanced"] as const).map(
+                        (lvl) => (
+                          <button
+                            key={lvl}
+                            onClick={() => setGenerateLevel(lvl)}
+                            className={`py-2 rounded-xl text-sm font-bold transition-colors ${
+                              generateLevel === lvl
+                                ? lvl === "beginner"
+                                  ? "bg-emerald-500 text-white"
+                                  : lvl === "intermediate"
+                                    ? "bg-amber-500 text-white"
+                                    : "bg-rose-500 text-white"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            }`}
+                          >
+                            {lvl}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={generateConversation}
+                    disabled={isGenerating}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-extrabold disabled:opacity-60 disabled:cursor-not-allowed hover:from-violet-600 hover:to-purple-700 transition-all shadow-md shadow-violet-200"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={18} />
+                        Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -741,22 +900,61 @@ export default function Game() {
                     {currentExchange.suggestedAnswerTranslation}
                   </div>
                 </div>
-                {userAnswer === currentExchange.suggestedAnswer ? (
-                  <div className="flex items-center gap-3 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl">
-                    <div className="p-1.5 bg-emerald-500 rounded-full">
-                      <Sparkles size={16} className="text-white" />
-                    </div>
-                    <span className="font-extrabold text-emerald-700">
-                      Perfect match!
+                {/* AI Feedback */}
+                {isFeedbackLoading ? (
+                  <div className="flex items-center gap-3 p-4 bg-violet-50 border-2 border-violet-200 rounded-2xl">
+                    <Loader2
+                      size={18}
+                      className="text-violet-500 animate-spin shrink-0"
+                    />
+                    <span className="text-sm text-violet-600 font-medium">
+                      Checking your answer...
                     </span>
                   </div>
-                ) : (
-                  <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl text-sm text-amber-700 font-medium">
-                    Compare your answer with the suggested one. Both may be
-                    correct &mdash; there are many ways to express the same idea
-                    in Japanese!
+                ) : aiFeedback ? (
+                  <div
+                    className={`p-4 rounded-2xl border-2 space-y-2 ${
+                      aiFeedback.isValid
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-amber-50 border-amber-200"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div
+                        className={`p-1.5 rounded-full shrink-0 mt-0.5 ${
+                          aiFeedback.isValid
+                            ? "bg-emerald-500"
+                            : "bg-amber-500"
+                        }`}
+                      >
+                        {aiFeedback.isValid ? (
+                          <Sparkles size={14} className="text-white" />
+                        ) : (
+                          <Lightbulb size={14} className="text-white" />
+                        )}
+                      </div>
+                      <p
+                        className={`text-sm font-medium ${
+                          aiFeedback.isValid
+                            ? "text-emerald-700"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        {aiFeedback.feedback}
+                      </p>
+                    </div>
+                    {aiFeedback.grammarTip && (
+                      <div className="flex items-start gap-2 pt-2 border-t border-dashed border-gray-200">
+                        <div className="p-1 bg-indigo-500 rounded-full shrink-0 mt-0.5">
+                          <BookOpen size={12} className="text-white" />
+                        </div>
+                        <p className="text-xs text-indigo-700 font-medium">
+                          {aiFeedback.grammarTip}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
+                ) : null}
                 <button
                   onClick={nextExchange}
                   className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-extrabold text-lg hover:bg-emerald-600 active:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
