@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AnswerMode, ConversationExchange } from "../types";
-import { Shuffle, PenLine, Lightbulb, Mic, MicOff } from "lucide-react";
+import { AnswerMode, ConversationExchange, KuromojiToken, VocabWord } from "../types";
+import { Shuffle, PenLine, Lightbulb, Mic } from "lucide-react";
 import { speakJapanese } from "./AudioButton";
+import TokenizedText from "./TokenizedText";
 
 interface AnswerPanelProps {
   mode: AnswerMode;
   exchange: ConversationExchange;
   onSubmit: (answer: string) => void;
+  vocabulary: VocabWord[];
+  onAddToSRS: (word: string, reading: string, meaning: string) => void;
+  tokenCache: Record<string, KuromojiToken[]>;
+  onTokenized: (text: string, tokens: KuromojiToken[]) => void;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -142,6 +147,10 @@ export default function AnswerPanel({
   mode,
   exchange,
   onSubmit,
+  vocabulary,
+  onAddToSRS,
+  tokenCache,
+  onTokenized,
 }: AnswerPanelProps) {
   const [answer, setAnswer] = useState("");
   const [selectedParts, setSelectedParts] = useState<string[]>([]);
@@ -348,7 +357,15 @@ export default function AnswerPanel({
               onClick={() => handleDeselect(i)}
               className="px-4 py-2 bg-sky-500 text-white rounded-xl text-sm font-bold hover:bg-sky-600 active:bg-sky-700 transition-colors shadow-md shadow-sky-200"
             >
-              {part}
+              <TokenizedText
+                text={part}
+                vocabulary={vocabulary}
+                onAddToSRS={onAddToSRS}
+                tokenCache={tokenCache}
+                onTokenized={onTokenized}
+                showAudio={false}
+                darkBg={true}
+              />
             </button>
           ))}
           {liveTranscript && (
@@ -361,13 +378,24 @@ export default function AnswerPanel({
         {/* Available word chips */}
         <div className="flex flex-wrap gap-2">
           {availableParts.map((part, i) => (
-            <button
+            <div
               key={`avail-${i}`}
-              onClick={() => handleSelect(i)}
-              className="px-4 py-2 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-sky-400 hover:bg-sky-50 active:bg-sky-100 transition-colors shadow-sm"
+              className="flex items-center bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:border-sky-400 hover:bg-sky-50 transition-colors shadow-sm overflow-hidden"
             >
-              {part}
-            </button>
+              <button
+                onClick={() => handleSelect(i)}
+                className="px-4 py-2"
+              >
+                <TokenizedText
+                  text={part}
+                  vocabulary={vocabulary}
+                  onAddToSRS={onAddToSRS}
+                  tokenCache={tokenCache}
+                  onTokenized={onTokenized}
+                  showAudio={false}
+                />
+              </button>
+            </div>
           ))}
         </div>
 
@@ -433,13 +461,24 @@ export default function AnswerPanel({
       {availableParts.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {availableParts.map((part, i) => (
-            <button
+            <div
               key={`hint-${i}`}
-              onClick={() => handleInsert(i)}
-              className="px-4 py-2 bg-white border-2 border-amber-300 rounded-xl text-sm font-bold text-amber-700 hover:border-amber-400 hover:bg-amber-100 active:bg-amber-200 transition-colors shadow-sm"
+              className="flex items-center bg-white border-2 border-amber-300 rounded-xl text-sm font-bold text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-colors shadow-sm overflow-hidden"
             >
-              {part}
-            </button>
+              <button
+                onClick={() => handleInsert(i)}
+                className="px-4 py-2"
+              >
+                <TokenizedText
+                  text={part}
+                  vocabulary={vocabulary}
+                  onAddToSRS={onAddToSRS}
+                  tokenCache={tokenCache}
+                  onTokenized={onTokenized}
+                  showAudio={false}
+                />
+              </button>
+            </div>
           ))}
         </div>
       )}

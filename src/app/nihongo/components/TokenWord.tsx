@@ -5,83 +5,82 @@ import { createPortal } from "react-dom";
 import { KuromojiToken, VocabWord } from "../types";
 import { Plus, Volume2 } from "lucide-react";
 import { speakJapanese } from "./AudioButton";
+import { useHighlight, HighlightLevel } from "../highlight-context";
 
-// Grammar-based color map (pos → tailwind classes)
-const GRAMMAR_COLORS: Record<
-  string,
-  { bg: string; text: string; darkBg: string; label: string }
-> = {
+// Grammar colors per intensity level
+interface GrammarStyle {
+  subtle: { bg: string; darkBg: string };
+  vivid: { bg: string; darkBg: string };
+  label: string;
+}
+
+const GRAMMAR_COLORS: Record<string, GrammarStyle> = {
   名詞: {
-    bg: "bg-sky-100/70",
-    text: "text-sky-800",
-    darkBg: "bg-sky-400/30",
+    subtle: { bg: "bg-sky-100/60", darkBg: "bg-sky-300/30" },
+    vivid: { bg: "bg-sky-200", darkBg: "bg-sky-300/50" },
     label: "noun",
   },
   動詞: {
-    bg: "bg-emerald-100/70",
-    text: "text-emerald-800",
-    darkBg: "bg-emerald-400/30",
+    subtle: { bg: "bg-emerald-100/60", darkBg: "bg-emerald-300/30" },
+    vivid: { bg: "bg-emerald-200", darkBg: "bg-emerald-300/50" },
     label: "verb",
   },
   形容詞: {
-    bg: "bg-amber-100/70",
-    text: "text-amber-800",
-    darkBg: "bg-amber-400/30",
+    subtle: { bg: "bg-amber-100/60", darkBg: "bg-amber-300/30" },
+    vivid: { bg: "bg-amber-200", darkBg: "bg-amber-300/50" },
     label: "i-adj",
   },
   助詞: {
-    bg: "bg-gray-100/70",
-    text: "text-gray-600",
-    darkBg: "bg-white/15",
+    subtle: { bg: "bg-gray-100/50", darkBg: "bg-white/15" },
+    vivid: { bg: "bg-gray-200", darkBg: "bg-white/30" },
     label: "particle",
   },
   助動詞: {
-    bg: "bg-violet-100/70",
-    text: "text-violet-800",
-    darkBg: "bg-violet-400/30",
+    subtle: { bg: "bg-violet-100/60", darkBg: "bg-violet-300/30" },
+    vivid: { bg: "bg-violet-200", darkBg: "bg-violet-300/50" },
     label: "aux",
   },
   副詞: {
-    bg: "bg-rose-100/70",
-    text: "text-rose-800",
-    darkBg: "bg-rose-400/30",
+    subtle: { bg: "bg-rose-100/60", darkBg: "bg-rose-300/30" },
+    vivid: { bg: "bg-rose-200", darkBg: "bg-rose-300/50" },
     label: "adverb",
   },
   接続詞: {
-    bg: "bg-gray-100/70",
-    text: "text-gray-700",
-    darkBg: "bg-white/15",
+    subtle: { bg: "bg-gray-100/50", darkBg: "bg-white/15" },
+    vivid: { bg: "bg-gray-200", darkBg: "bg-white/30" },
     label: "conj",
   },
   感動詞: {
-    bg: "bg-yellow-100/70",
-    text: "text-yellow-800",
-    darkBg: "bg-yellow-400/30",
+    subtle: { bg: "bg-yellow-100/60", darkBg: "bg-yellow-300/30" },
+    vivid: { bg: "bg-yellow-200", darkBg: "bg-yellow-300/50" },
     label: "interj",
   },
   連体詞: {
-    bg: "bg-cyan-100/70",
-    text: "text-cyan-800",
-    darkBg: "bg-cyan-400/30",
+    subtle: { bg: "bg-cyan-100/60", darkBg: "bg-cyan-300/30" },
+    vivid: { bg: "bg-cyan-200", darkBg: "bg-cyan-300/50" },
     label: "pre-noun",
   },
   形容動詞: {
-    bg: "bg-orange-100/70",
-    text: "text-orange-800",
-    darkBg: "bg-orange-400/30",
+    subtle: { bg: "bg-orange-100/60", darkBg: "bg-orange-300/30" },
+    vivid: { bg: "bg-orange-200", darkBg: "bg-orange-300/50" },
     label: "na-adj",
   },
 };
 
-const DEFAULT_COLOR = {
-  bg: "bg-gray-100/50",
-  text: "text-gray-700",
-  darkBg: "bg-white/10",
+const DEFAULT_STYLE: GrammarStyle = {
+  subtle: { bg: "bg-gray-100/40", darkBg: "bg-white/10" },
+  vivid: { bg: "bg-gray-200/70", darkBg: "bg-white/25" },
   label: "",
 };
 
-function getGrammarColor(pos: string) {
-  return GRAMMAR_COLORS[pos] || DEFAULT_COLOR;
+function getGrammarColor(pos: string, level: HighlightLevel, darkBg: boolean): { className: string; label: string } {
+  if (level === "off") return { className: "", label: (GRAMMAR_COLORS[pos] || DEFAULT_STYLE).label };
+  const style = GRAMMAR_COLORS[pos] || DEFAULT_STYLE;
+  const intensity = style[level];
+  return {
+    className: darkBg ? intensity.darkBg : intensity.bg,
+    label: style.label,
+  };
 }
 
 interface TokenWordProps {
@@ -118,7 +117,8 @@ export default function TokenWord({
     (v) => v.word === token.surface_form || v.word === token.basic_form,
   );
 
-  const grammarColor = getGrammarColor(token.pos);
+  const { level: highlightLevel } = useHighlight();
+  const grammarColor = getGrammarColor(token.pos, highlightLevel, darkBg);
 
   const handleLookup = useCallback(async () => {
     if (lookupMeaning || isLooking || vocabEntry) return;
@@ -266,12 +266,17 @@ export default function TokenWord({
             {reading && (
               <div className="text-gray-500 text-sm">{reading}</div>
             )}
-            <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span
-                className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${grammarColor.bg} ${grammarColor.text}`}
+                className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${getGrammarColor(token.pos, "vivid", false).className} text-gray-700`}
               >
                 {grammarColor.label || token.pos}
               </span>
+              {token.grammar_note && (
+                <span className="text-xs px-1.5 py-0.5 rounded-md font-medium bg-indigo-100 text-indigo-700">
+                  {token.grammar_note}
+                </span>
+              )}
             </div>
             {meaning ? (
               <div className="mt-1.5 text-gray-700 font-medium">{meaning}</div>
@@ -310,9 +315,9 @@ export default function TokenWord({
     <span ref={wordRef} className="relative inline-block">
       <span
         className={`cursor-pointer rounded-md px-0.5 transition-colors ${
-          darkBg
-            ? `${grammarColor.darkBg} hover:brightness-125`
-            : `${grammarColor.bg} hover:brightness-95`
+          grammarColor.className
+            ? `${grammarColor.className} hover:brightness-95`
+            : "hover:bg-gray-100"
         }`}
         onClick={handleClick}
         onMouseEnter={openPopover}

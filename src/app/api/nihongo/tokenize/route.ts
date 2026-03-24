@@ -58,7 +58,15 @@ export async function POST(request: NextRequest) {
     const tok = await getTokenizer();
     const raw = tok.tokenize(text);
 
-    const mapped = raw.map(
+    interface RawToken {
+      surface_form: string;
+      reading: string;
+      basic_form: string;
+      pos: string;
+      pos_detail_1: string;
+    }
+
+    const mapped: RawToken[] = raw.map(
       (t: {
         surface_form: string;
         reading: string;
@@ -74,25 +82,91 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    // Merge auxiliary verbs (助動詞) and certain particles (助詞/接続助詞)
-    // into the preceding token for learner-friendly grouping.
-    // e.g. 引っ越し+て+き+まし+た → 引っ越し+て+きました
-    const tokens: typeof mapped = [];
+    // Grammar note builders for merged morphemes
+    const AUXILIARY_NOTES: Record<string, string> = {
+      ます: "polite",
+      た: "past",
+      ない: "negative",
+      ぬ: "negative (literary)",
+      れる: "passive",
+      られる: "passive/potential",
+      せる: "causative",
+      させる: "causative",
+      たい: "want to",
+      だ: "copula",
+      です: "copula (polite)",
+      う: "volitional",
+      よう: "volitional",
+    };
+
+    const NON_INDEPENDENT_NOTES: Record<string, string> = {
+      くる: "~ and come / has been ~ing",
+      いく: "~ and go / continue to ~",
+      いる: "~ing (ongoing)",
+      ある: "has been ~ed (resultative)",
+      みる: "try ~ing",
+      しまう: "end up ~ing / completely ~",
+      おく: "do ~ in advance",
+      もらう: "have someone ~",
+      あげる: "do ~ for someone",
+      くれる: "someone does ~ for me",
+      くださる: "someone does ~ for me (polite)",
+    };
+
+    // Merge auxiliary/non-independent morphemes into the preceding token
+    // and build grammar notes describing the conjugation.
+    interface MergedToken extends RawToken {
+      grammar_note?: string;
+    }
+
+    const tokens: MergedToken[] = [];
+    // Track merged components per token
+    const mergedParts: RawToken[][] = [];
+
     for (const t of mapped) {
       const prev = tokens[tokens.length - 1];
       const shouldMerge =
         prev &&
         prev.pos !== "記号" &&
         (t.pos === "助動詞" ||
-          // Merge て/で connecting particles into preceding verb
-          (t.pos === "助詞" && t.pos_detail_1 === "接続助詞"));
+          (t.pos === "助詞" && t.pos_detail_1 === "接続助詞") ||
+          (t.pos === "動詞" && t.pos_detail_1 === "非自立") ||
+          (t.pos === "形容詞" && t.pos_detail_1 === "非自立"));
 
       if (shouldMerge) {
         prev.surface_form += t.surface_form;
         prev.reading += t.reading;
-        // Keep the original token's pos and basic_form
+        mergedParts[mergedParts.length - 1].push(t);
       } else {
         tokens.push({ ...t });
+        mergedParts.push([t]);
+      }
+    }
+
+    // Generate grammar notes for merged tokens
+    for (let i = 0; i < tokens.length; i++) {
+      const parts = mergedParts[i];
+      if (parts.length <= 1) continue;
+
+      const notes: string[] = [];
+      for (let j = 1; j < parts.length; j++) {
+        const p = parts[j];
+        if (p.pos === "助詞" && p.pos_detail_1 === "接続助詞") {
+          notes.push("te-form");
+        } else if (p.pos === "動詞" && p.pos_detail_1 === "非自立") {
+          const note = NON_INDEPENDENT_NOTES[p.basic_form];
+          if (note) notes.push(note);
+        } else if (p.pos === "助動詞") {
+          const note = AUXILIARY_NOTES[p.basic_form];
+          if (note) notes.push(note);
+        } else if (p.pos === "形容詞" && p.pos_detail_1 === "非自立") {
+          if (p.basic_form === "ない") notes.push("negative");
+          else if (p.basic_form === "ほしい") notes.push("want someone to ~");
+        }
+      }
+
+      if (notes.length > 0) {
+        tokens[i].grammar_note = notes.join(", ");
       }
     }
 

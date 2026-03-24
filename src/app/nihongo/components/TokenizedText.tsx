@@ -14,6 +14,7 @@ interface TokenizedTextProps {
   showAudio?: boolean;
   audioSize?: number;
   className?: string;
+  darkBg?: boolean;
 }
 
 export default function TokenizedText({
@@ -25,6 +26,7 @@ export default function TokenizedText({
   showAudio = true,
   audioSize = 14,
   className = "",
+  darkBg = false,
 }: TokenizedTextProps) {
   const [loading, setLoading] = useState(false);
 
@@ -62,6 +64,7 @@ export default function TokenizedText({
               token={token}
               vocabulary={vocabulary}
               onAddToSRS={onAddToSRS}
+              darkBg={darkBg}
             />
           ))
         : text}

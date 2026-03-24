@@ -29,7 +29,9 @@ import {
   Sparkles,
   Trophy,
   MessageCircle,
+  Palette,
 } from "lucide-react";
+import { useHighlight } from "../highlight-context";
 
 interface SavedConversation {
   messages: DisplayMessage[];
@@ -60,7 +62,10 @@ const LEVEL_COLORS = {
   },
 };
 
+const HIGHLIGHT_LABELS = { off: "Off", subtle: "Subtle", vivid: "Vivid" } as const;
+
 export default function Game() {
+  const { level: highlightLevel, cycle: cycleHighlight } = useHighlight();
   const [phase, setPhase] = useState<GamePhase>("select");
   const [currentConv, setCurrentConv] = useState<Conversation | null>(null);
   const [exchangeIdx, setExchangeIdx] = useState(0);
@@ -324,18 +329,28 @@ export default function Game() {
                 日本語練習
               </h1>
             </div>
-            <button
-              onClick={() => setShowSRS(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-white/20 backdrop-blur rounded-full text-sm font-bold text-white hover:bg-white/30 transition-colors"
-            >
-              <BookOpen size={16} />
-              SRS
-              {dueCount > 0 && (
-                <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                  {dueCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={cycleHighlight}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/20 backdrop-blur rounded-full text-sm font-bold text-white hover:bg-white/30 transition-colors"
+                title="Grammar highlight intensity"
+              >
+                <Palette size={14} />
+                {HIGHLIGHT_LABELS[highlightLevel]}
+              </button>
+              <button
+                onClick={() => setShowSRS(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white/20 backdrop-blur rounded-full text-sm font-bold text-white hover:bg-white/30 transition-colors"
+              >
+                <BookOpen size={16} />
+                SRS
+                {dueCount > 0 && (
+                  <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
+                    {dueCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -455,18 +470,28 @@ export default function Game() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowSRS(!showSRS)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-full text-sm font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
-          >
-            <BookOpen size={14} />
-            SRS
-            {dueCount > 0 && (
-              <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                {dueCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={cycleHighlight}
+              className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-full text-sm font-bold text-gray-500 hover:bg-gray-200 transition-colors"
+              title="Grammar highlight intensity"
+            >
+              <Palette size={14} />
+              {HIGHLIGHT_LABELS[highlightLevel]}
+            </button>
+            <button
+              onClick={() => setShowSRS(!showSRS)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-full text-sm font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
+            >
+              <BookOpen size={14} />
+              SRS
+              {dueCount > 0 && (
+                <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
+                  {dueCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         {/* Progress bar */}
         <div className="h-2 bg-gray-100">
@@ -661,6 +686,10 @@ export default function Game() {
                   mode={answerMode}
                   exchange={currentExchange}
                   onSubmit={submitAnswer}
+                  vocabulary={vocabulary}
+                  onAddToSRS={handleAddToSRS}
+                  tokenCache={tokenCache}
+                  onTokenized={handleTokenized}
                 />
               </div>
             )}

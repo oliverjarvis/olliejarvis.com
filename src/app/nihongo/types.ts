@@ -46,6 +46,7 @@ export interface KuromojiToken {
   basic_form: string;
   pos: string;
   pos_detail_1: string;
+  grammar_note?: string;
 }
 
 export type GamePhase =
