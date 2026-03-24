@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Conversation,
   GamePhase,
@@ -10,11 +10,16 @@ import {
   VocabWord,
 } from "../types";
 import { conversations } from "../conversations";
-import { addCard, getDueCards } from "../srs";
+import { recordTokens, bookmarkWord, getJournalStats } from "../word-journal";
+import { recordGrammarPatterns } from "../grammar-patterns";
+import { getLearnerProfile, rebuildProfile, serializeProfileForPrompt } from "../learner-profile";
+import { recordConversation } from "../learner-profile";
+import { migrateSRSToJournal } from "../migration";
 import MessageBubble from "./MessageBubble";
 import MultipleChoice from "./MultipleChoice";
 import AnswerPanel from "./AnswerPanel";
-import SRSPanel from "./SRSPanel";
+import WordJournalPanel from "./WordJournalPanel";
+import OnboardingFlow from "./OnboardingFlow";
 import TokenizedText from "./TokenizedText";
 import AudioButton from "./AudioButton";
 import GrammarBreakdown from "./GrammarBreakdown";
@@ -81,9 +86,10 @@ export default function Game() {
   const [answerMode, setAnswerMode] = useState<AnswerMode | null>(null);
   const [userAnswer, setUserAnswer] = useState("");
 
-  const [showSRS, setShowSRS] = useState(false);
-  const [srsRefresh, setSrsRefresh] = useState(0);
-  const [dueCount, setDueCount] = useState(0);
+  const [showJournal, setShowJournal] = useState(false);
+  const [journalRefresh, setJournalRefresh] = useState(0);
+  const [wordCount, setWordCount] = useState(0);
+  const [hasProfile, setHasProfile] = useState(true); // assume true until checked
 
   const [aiFeedback, setAiFeedback] = useState<{
     isValid: boolean;
@@ -111,6 +117,9 @@ export default function Game() {
   const interactionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Migrate old SRS data if needed
+    migrateSRSToJournal();
+
     try {
       const saved = localStorage.getItem("nihongo-saved-conversations");
       if (saved) setSavedConversations(JSON.parse(saved));
@@ -123,7 +132,8 @@ export default function Game() {
     } catch {
       /* ignore */
     }
-    setDueCount(getDueCards().length);
+    setWordCount(getJournalStats().total);
+    setHasProfile(!!getLearnerProfile());
   }, []);
 
   const allConversations = [...conversations, ...aiConversations];
@@ -131,12 +141,17 @@ export default function Game() {
   const generateConversation = async () => {
     setIsGenerating(true);
     try {
+      // Include learner profile for adaptive i+1 generation
+      const profile = getLearnerProfile();
+      const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
+
       const res = await fetch("/api/nihongo/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topic: generateTopic || undefined,
           level: generateLevel,
+          learnerProfile,
         }),
       });
       const data = await res.json();
@@ -190,11 +205,28 @@ export default function Game() {
     [tokenCache],
   );
 
+  const vocabulary = useMemo((): VocabWord[] => {
+    if (!currentConv) return [];
+    const vocab: VocabWord[] = [];
+    for (let i = 0; i <= exchangeIdx; i++) {
+      if (currentConv.exchanges[i]) {
+        vocab.push(...currentConv.exchanges[i].vocabulary);
+      }
+    }
+    return vocab;
+  }, [currentConv, exchangeIdx]);
+
   const handleTokenized = useCallback(
     (text: string, tokens: KuromojiToken[]) => {
       setTokenCache((prev) => ({ ...prev, [text]: tokens }));
+      // Record words + grammar patterns to journal
+      if (currentConv) {
+        recordTokens(tokens, currentConv.id, vocabulary);
+        recordGrammarPatterns(tokens);
+        setWordCount(getJournalStats().total);
+      }
     },
-    [],
+    [currentConv, vocabulary],
   );
 
   const startConversation = useCallback(
@@ -295,6 +327,17 @@ export default function Game() {
         "nihongo-saved-conversations",
         JSON.stringify(saved),
       );
+      // Record to conversation history + rebuild profile
+      recordConversation({
+        id: currentConv.id,
+        title: currentConv.title,
+        level: currentConv.level,
+        topic: currentConv.titleEn,
+        completedAt: Date.now(),
+        newWordsIntroduced: 0, // TODO: track this
+        exchangeCount: currentConv.exchanges.length,
+      });
+      rebuildProfile();
       setPhase("complete");
       return;
     }
@@ -317,10 +360,10 @@ export default function Game() {
     setPhase("reading");
   };
 
-  const handleAddToSRS = (word: string, reading: string, meaning: string) => {
-    addCard(word, reading, meaning);
-    setDueCount(getDueCards().length);
-    setSrsRefresh((n) => n + 1);
+  const handleBookmarkWord = (word: string, reading: string, meaning: string) => {
+    bookmarkWord(word, reading, meaning);
+    setWordCount(getJournalStats().total);
+    setJournalRefresh((n) => n + 1);
   };
 
   const goBack = () => {
@@ -334,17 +377,7 @@ export default function Game() {
     setReplayId(convId);
   };
 
-  const getAllVocabulary = (): VocabWord[] => {
-    if (!currentConv) return [];
-    const vocab: VocabWord[] = [];
-    for (let i = 0; i <= exchangeIdx; i++) {
-      vocab.push(...currentConv.exchanges[i].vocabulary);
-    }
-    return vocab;
-  };
-
   const currentExchange = currentConv?.exchanges[exchangeIdx];
-  const vocabulary = getAllVocabulary();
   const progress = currentConv
     ? ((exchangeIdx + 1) / currentConv.exchanges.length) * 100
     : 0;
@@ -385,11 +418,22 @@ export default function Game() {
               message={msg}
               vocabulary={allVocab}
               tokens={tokenCache[msg.text]}
-              onAddToSRS={handleAddToSRS}
+              onAddToSRS={handleBookmarkWord}
             />
           ))}
         </div>
       </div>
+    );
+  }
+
+  // Onboarding — show on first visit
+  if (!hasProfile) {
+    return (
+      <OnboardingFlow
+        onComplete={() => {
+          setHasProfile(true);
+        }}
+      />
     );
   }
 
@@ -428,14 +472,14 @@ export default function Game() {
                 {HIGHLIGHT_LABELS[highlightLevel]}
               </button>
               <button
-                onClick={() => setShowSRS(true)}
+                onClick={() => setShowJournal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-white/20 backdrop-blur rounded-full text-sm font-bold text-white hover:bg-white/30 transition-colors"
               >
                 <BookOpen size={16} />
-                SRS
-                {dueCount > 0 && (
-                  <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                    {dueCount}
+                Words
+                {wordCount > 0 && (
+                  <span className="bg-emerald-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
+                    {wordCount}
                   </span>
                 )}
               </button>
@@ -616,10 +660,10 @@ export default function Game() {
             </div>
           </div>
 
-          {showSRS && (
-            <SRSPanel
-              onClose={() => setShowSRS(false)}
-              refreshTrigger={srsRefresh}
+          {showJournal && (
+            <WordJournalPanel
+              onClose={() => setShowJournal(false)}
+              refreshTrigger={journalRefresh}
             />
           )}
         </div>
@@ -664,14 +708,14 @@ export default function Game() {
               {HIGHLIGHT_LABELS[highlightLevel]}
             </button>
             <button
-              onClick={() => setShowSRS(!showSRS)}
+              onClick={() => setShowJournal(!showJournal)}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-full text-sm font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
             >
               <BookOpen size={14} />
-              SRS
-              {dueCount > 0 && (
-                <span className="bg-orange-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                  {dueCount}
+              Words
+              {wordCount > 0 && (
+                <span className="bg-emerald-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
+                  {wordCount}
                 </span>
               )}
             </button>
@@ -696,7 +740,7 @@ export default function Game() {
                 message={msg}
                 vocabulary={vocabulary}
                 tokens={tokenCache[msg.text]}
-                onAddToSRS={handleAddToSRS}
+                onAddToSRS={handleBookmarkWord}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -727,7 +771,7 @@ export default function Game() {
                 correctIndex={currentExchange.correctChoiceIndex}
                 showResult={false}
                 vocabulary={vocabulary}
-                onAddToSRS={handleAddToSRS}
+                onAddToSRS={handleBookmarkWord}
                 tokenCache={tokenCache}
                 onTokenized={handleTokenized}
               />
@@ -770,7 +814,7 @@ export default function Game() {
                               ]
                             }
                             vocabulary={vocabulary}
-                            onAddToSRS={handleAddToSRS}
+                            onAddToSRS={handleBookmarkWord}
                             tokenCache={tokenCache}
                             onTokenized={handleTokenized}
                             showAudio={false}
@@ -790,7 +834,7 @@ export default function Game() {
                   correctIndex={currentExchange.correctChoiceIndex}
                   showResult={true}
                   vocabulary={vocabulary}
-                  onAddToSRS={handleAddToSRS}
+                  onAddToSRS={handleBookmarkWord}
                   tokenCache={tokenCache}
                   onTokenized={handleTokenized}
                 />
@@ -871,7 +915,7 @@ export default function Game() {
                   exchange={currentExchange}
                   onSubmit={submitAnswer}
                   vocabulary={vocabulary}
-                  onAddToSRS={handleAddToSRS}
+                  onAddToSRS={handleBookmarkWord}
                   tokenCache={tokenCache}
                   onTokenized={handleTokenized}
                 />
@@ -888,7 +932,7 @@ export default function Game() {
                     <TokenizedText
                       text={userAnswer}
                       vocabulary={vocabulary}
-                      onAddToSRS={handleAddToSRS}
+                      onAddToSRS={handleBookmarkWord}
                       tokenCache={tokenCache}
                       onTokenized={handleTokenized}
                     />
@@ -903,7 +947,7 @@ export default function Game() {
                     <TokenizedText
                       text={currentExchange.suggestedAnswer}
                       vocabulary={vocabulary}
-                      onAddToSRS={handleAddToSRS}
+                      onAddToSRS={handleBookmarkWord}
                       tokenCache={tokenCache}
                       onTokenized={handleTokenized}
                     />
@@ -1014,10 +1058,10 @@ export default function Game() {
           </div>
         </div>
 
-        {showSRS && (
-          <SRSPanel
-            onClose={() => setShowSRS(false)}
-            refreshTrigger={srsRefresh}
+        {showJournal && (
+          <WordJournalPanel
+            onClose={() => setShowJournal(false)}
+            refreshTrigger={journalRefresh}
           />
         )}
       </div>

@@ -54,17 +54,31 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { topic, level } = await request.json();
+    const { topic, level, learnerProfile } = await request.json();
 
-    const userPrompt = topic
+    let userPrompt = topic
       ? `Generate a ${level || "intermediate"} level Japanese conversation about: ${topic}`
       : `Generate a ${level || "intermediate"} level Japanese conversation. Pick an interesting everyday scenario that would be useful for language learners.`;
+
+    // Add learner profile for adaptive i+1 generation
+    let system = SYSTEM_PROMPT;
+    if (learnerProfile) {
+      system += `\n\nVOCABULARY CALIBRATION (i+1 comprehensible input):
+${learnerProfile}
+
+Based on this learner profile:
+- Use ~90% vocabulary the learner has already encountered (from their level and below)
+- Introduce ~10% new vocabulary appropriate for their next level
+- Reuse the "Reinforce" words naturally where they fit the topic
+- Use grammar patterns they've seen, plus 1-2 new patterns from the next level
+- If the topic requires specialized vocabulary above their level, scaffold it: use simple grammar and provide context clues around new words (e.g. explain new concepts within the dialogue)`;
+    }
 
     const message = await client.messages.create({
       model: "claude-opus-4-6",
       max_tokens: 4096,
       messages: [{ role: "user", content: userPrompt }],
-      system: SYSTEM_PROMPT,
+      system,
     });
 
     const text =

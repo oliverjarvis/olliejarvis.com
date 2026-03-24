@@ -28,6 +28,7 @@ export interface Conversation {
   exchanges: ConversationExchange[];
 }
 
+// Legacy — kept for migration only
 export interface SRSCard {
   id: string;
   word: string;
@@ -38,6 +39,50 @@ export interface SRSCard {
   lastReview: number;
   correctCount: number;
   incorrectCount: number;
+}
+
+// Word Journal — replaces SRS
+export interface WordJournalEntry {
+  id: string;
+  word: string;
+  reading: string;
+  meaning: string;
+  pos: string;
+  jlptLevel: number; // 5=N5, 4=N4, ... 1=N1, 0=unknown
+  encounterCount: number;
+  conversationIds: string[];
+  firstSeen: number;
+  lastSeen: number;
+  naturallyAcquired: boolean; // encounterCount >= 5
+  bookmarked: boolean;
+}
+
+export interface LearnerProfile {
+  estimatedLevel: "N5" | "N4" | "N3" | "N2" | "N1";
+  totalWords: number;
+  wordsByLevel: Record<number, number>;
+  acquiredWords: number;
+  grammarPatternsSeen: string[];
+  conversationsCompleted: number;
+  recentTopics: string[];
+  reinforcementWords: string[];
+  startedAt: number;
+}
+
+export interface GrammarPatternEntry {
+  pattern: string;
+  encounterCount: number;
+  firstSeen: number;
+}
+
+export interface ConversationRecord {
+  id: string;
+  title: string;
+  level: string;
+  topic: string;
+  completedAt: number;
+  newWordsIntroduced: number;
+  exchangeCount: number;
 }
 
 export interface KuromojiToken {
