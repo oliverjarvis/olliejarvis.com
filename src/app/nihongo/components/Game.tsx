@@ -312,8 +312,16 @@ export default function Game() {
     );
   }
 
-  // Select screen
+  // Select screen — messenger style
   if (phase === "select") {
+    const AVATAR_COLORS = [
+      "from-sky-400 to-blue-500",
+      "from-purple-400 to-indigo-500",
+      "from-orange-400 to-rose-500",
+      "from-emerald-400 to-teal-500",
+      "from-pink-400 to-rose-500",
+    ];
+
     return (
       <div className="min-h-screen flex flex-col bg-[#f0f0f0]">
         <header className="p-5 bg-gradient-to-r from-emerald-500 to-teal-500 sticky top-0 z-40">
@@ -355,82 +363,88 @@ export default function Game() {
         </header>
 
         <div className="flex flex-1">
-          <div className="flex-1 p-4 sm:p-6 max-w-2xl mx-auto w-full">
-            <p className="text-gray-500 mb-6 font-medium">
-              Practice Japanese through conversations. Tap a conversation to
-              begin!
-            </p>
-
-            <div className="space-y-4">
+          <div className="flex-1 max-w-2xl mx-auto w-full">
+            {/* Conversations as chat list */}
+            <div className="bg-white sm:my-4 sm:mx-4 sm:rounded-2xl sm:shadow-lg overflow-hidden">
               {conversations.map((conv, idx) => {
                 const isSaved = !!savedConversations[conv.id];
                 const colors = LEVEL_COLORS[conv.level];
-                const cardColors = [
-                  "from-sky-400 to-blue-500",
-                  "from-purple-400 to-indigo-500",
-                  "from-orange-400 to-rose-500",
-                ];
+                const avatarGradient = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                const preview = conv.exchanges[0].speakerMessage;
+                const initial = conv.speaker[0];
 
                 return (
-                  <div
-                    key={conv.id}
-                    className="bg-white rounded-2xl shadow-md overflow-hidden border-2 border-gray-100 hover:shadow-lg transition-shadow"
-                  >
-                    <div
-                      className={`bg-gradient-to-r ${cardColors[idx % cardColors.length]} p-4 text-white`}
+                  <div key={conv.id}>
+                    <button
+                      onClick={() => startConversation(conv)}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors text-left"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-extrabold text-xl">
-                            {conv.title}
-                          </h3>
-                          <p className="text-white/80 text-sm font-medium">
-                            {conv.titleEn}
-                          </p>
-                        </div>
+                      {/* Avatar */}
+                      <div
+                        className={`shrink-0 w-14 h-14 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center shadow-md relative`}
+                      >
+                        <span className="text-white font-extrabold text-xl">
+                          {initial}
+                        </span>
                         {isSaved && (
-                          <div className="bg-white/20 rounded-full p-2">
-                            <Trophy size={20} />
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-500 rounded-full p-0.5 border-2 border-white">
+                            <Check size={10} className="text-white" />
                           </div>
                         )}
                       </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`text-xs px-3 py-1 rounded-full font-bold ${colors.badge}`}
-                        >
-                          {conv.level}
-                        </span>
-                        <span className="text-xs text-gray-400 font-medium">
-                          {conv.exchanges.length} exchanges
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500 mb-3">
-                        <span className="font-semibold text-gray-700">
-                          {conv.speaker}
-                        </span>{" "}
-                        &mdash; {conv.speakerDescription}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => startConversation(conv)}
-                          className="flex-1 flex items-center justify-center gap-1 py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 active:bg-emerald-700 transition-colors shadow-md shadow-emerald-200"
-                        >
-                          {isSaved ? "Restart" : "Start"}
-                          <ChevronRight size={16} />
-                        </button>
-                        {isSaved && (
-                          <button
-                            onClick={() => startReplay(conv.id)}
-                            className="flex items-center gap-1 px-4 py-3 bg-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h3 className="font-extrabold text-gray-900 text-base">
+                            {conv.speaker}
+                          </h3>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-bold shrink-0 ${colors.badge}`}
                           >
-                            <RotateCcw size={14} />
-                            Replay
-                          </button>
-                        )}
+                            {conv.level}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-sm font-bold text-gray-700">
+                            {conv.title}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            &middot; {conv.titleEn}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-400 truncate">
+                          {preview}
+                        </p>
                       </div>
-                    </div>
+
+                      {/* Arrow */}
+                      <ChevronRight
+                        size={20}
+                        className="text-gray-300 shrink-0"
+                      />
+                    </button>
+
+                    {/* Replay button if completed */}
+                    {isSaved && (
+                      <div className="flex px-4 pb-3 -mt-1 ml-[4.25rem]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startReplay(conv.id);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 rounded-full text-xs font-bold text-gray-500 hover:bg-gray-200 transition-colors"
+                        >
+                          <RotateCcw size={12} />
+                          Replay
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    {idx < conversations.length - 1 && (
+                      <div className="ml-[4.25rem] border-b border-gray-100" />
+                    )}
                   </div>
                 );
               })}
