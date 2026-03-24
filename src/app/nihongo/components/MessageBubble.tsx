@@ -5,6 +5,7 @@ import { DisplayMessage, KuromojiToken, VocabWord } from "../types";
 import TokenWord from "./TokenWord";
 import AudioButton from "./AudioButton";
 import { ChevronDown, ChevronUp, Globe } from "lucide-react";
+import GrammarBreakdown from "./GrammarBreakdown";
 
 interface MessageBubbleProps {
   message: DisplayMessage;
@@ -88,6 +89,7 @@ export default function MessageBubble({
             {message.translation}
           </div>
         )}
+        <GrammarBreakdown text={message.text} className="mt-1" />
       </div>
     </div>
   );

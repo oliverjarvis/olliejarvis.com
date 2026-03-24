@@ -5,6 +5,7 @@ import { KuromojiToken, VocabWord } from "../types";
 import TokenizedText from "./TokenizedText";
 import AudioButton from "./AudioButton";
 import { Globe } from "lucide-react";
+import GrammarBreakdown from "./GrammarBreakdown";
 
 interface MultipleChoiceProps {
   question: string;
@@ -111,6 +112,7 @@ export default function MultipleChoice({
             {questionTranslation}
           </p>
         )}
+        <GrammarBreakdown text={question} className="mt-1" />
       </div>
       <div className="grid gap-3">
         {choices.map((choice, i) => {
@@ -180,6 +182,11 @@ export default function MultipleChoice({
                 {isRevealed && choiceTranslations?.[i] && (
                   <div className="text-xs text-gray-400 italic mt-1 ml-8">
                     {choiceTranslations[i]}
+                  </div>
+                )}
+                {isRevealed && (
+                  <div className="ml-8" onClick={(e) => e.stopPropagation()}>
+                    <GrammarBreakdown text={choice} />
                   </div>
                 )}
               </button>

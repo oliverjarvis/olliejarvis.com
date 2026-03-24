@@ -16,6 +16,8 @@ import MultipleChoice from "./MultipleChoice";
 import AnswerPanel from "./AnswerPanel";
 import SRSPanel from "./SRSPanel";
 import TokenizedText from "./TokenizedText";
+import AudioButton from "./AudioButton";
+import GrammarBreakdown from "./GrammarBreakdown";
 import {
   ArrowLeft,
   BookOpen,
@@ -364,11 +366,14 @@ export default function Game() {
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div>
-            <h1 className="font-extrabold text-lg text-gray-800">
-              {conv.title}
-            </h1>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
-              Replay
+            <div className="flex items-center gap-1.5">
+              <h1 className="font-extrabold text-lg text-gray-800">
+                {conv.title}
+              </h1>
+              <AudioButton text={conv.title} size={14} className="text-gray-400" />
+            </div>
+            <p className="text-xs text-gray-400 font-semibold">
+              {conv.titleEn} &middot; Replay
             </p>
           </div>
         </header>
@@ -485,6 +490,7 @@ export default function Game() {
                           <span className="text-sm font-bold text-gray-700">
                             {conv.title}
                           </span>
+                          <AudioButton text={conv.title} size={12} className="text-gray-300 shrink-0" />
                           <span className="text-xs text-gray-400">
                             &middot; {conv.titleEn}
                           </span>
@@ -634,11 +640,16 @@ export default function Game() {
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
             <div>
-              <h1 className="font-extrabold text-lg text-gray-800">
-                {currentConv?.title}
-              </h1>
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-extrabold text-lg text-gray-800">
+                  {currentConv?.title}
+                </h1>
+                {currentConv && (
+                  <AudioButton text={currentConv.title} size={14} className="text-gray-400" />
+                )}
+              </div>
               <p className="text-xs text-gray-400 font-semibold">
-                {currentConv?.speaker} &middot; {exchangeIdx + 1}/
+                {currentConv?.titleEn} &middot; {currentConv?.speaker} &middot; {exchangeIdx + 1}/
                 {currentConv?.exchanges.length}
               </p>
             </div>
@@ -882,6 +893,7 @@ export default function Game() {
                       onTokenized={handleTokenized}
                     />
                   </div>
+                  <GrammarBreakdown text={userAnswer} />
                 </div>
                 <div className="space-y-2">
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -899,6 +911,7 @@ export default function Game() {
                   <div className="text-sm text-gray-500 italic">
                     {currentExchange.suggestedAnswerTranslation}
                   </div>
+                  <GrammarBreakdown text={currentExchange.suggestedAnswer} />
                 </div>
                 {/* AI Feedback */}
                 {isFeedbackLoading ? (
