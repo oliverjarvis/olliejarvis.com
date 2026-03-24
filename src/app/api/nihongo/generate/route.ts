@@ -39,6 +39,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
 IMPORTANT RULES:
 - Generate 4-5 exchanges that form a natural, flowing conversation
 - The conversation should feel realistic and teach useful patterns
+- ALWAYS use kanji where a native speaker would, at ALL levels. Write 大好き not だいすき, 僕 not ぼく, 好き not すき, 食べる not たべる. The app provides readings on hover — never dumb down the kanji.
 - Multiple choice: all 4 choices MUST use vocabulary from the actual message so learners can't eliminate by keyword. The distractors should require understanding grammar/meaning to distinguish.
 - answerParts: split the suggested answer into 4-8 meaningful phrase chunks (not individual morphemes). These will be scrambled for a word-ordering game.
 - vocabulary: include 4-7 key words per exchange with dictionary form, hiragana reading, and English meaning
