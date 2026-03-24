@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Conversation,
+  ConversationExchange,
   GamePhase,
   AnswerMode,
   DisplayMessage,
@@ -104,6 +105,18 @@ export default function Game() {
   const [generateLevel, setGenerateLevel] = useState<"beginner" | "intermediate" | "advanced">("intermediate");
   const [showGenerateForm, setShowGenerateForm] = useState(false);
 
+  // Live conversation mode
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [liveConvId, setLiveConvId] = useState<string | null>(null);
+  const [liveSpeaker, setLiveSpeaker] = useState("");
+  const [liveSpeakerDesc, setLiveSpeakerDesc] = useState("");
+  const [liveTopic, setLiveTopic] = useState("");
+  const [liveLevel, setLiveLevel] = useState("");
+  const [liveExchange, setLiveExchange] = useState<ConversationExchange | null>(null);
+  const [liveHistory, setLiveHistory] = useState<{ role: "speaker" | "user"; text: string; translation: string }[]>([]);
+  const [isLiveLoading, setIsLiveLoading] = useState(false);
+  const [liveEnded, setLiveEnded] = useState(false);
+
   const [tokenCache, setTokenCache] = useState<
     Record<string, KuromojiToken[]>
   >({});
@@ -169,6 +182,140 @@ export default function Game() {
       console.error("Generation failed:", error);
     }
     setIsGenerating(false);
+  };
+
+  // === Live conversation mode ===
+
+  const startLiveConversation = async (topic: string, level: string, speaker?: string, speakerDesc?: string) => {
+    const convId = `live-${Date.now()}`;
+    const spk = speaker || "相手";
+    const desc = speakerDesc || "Your conversation partner";
+    setLiveConvId(convId);
+    setLiveSpeaker(spk);
+    setLiveSpeakerDesc(desc);
+    setLiveTopic(topic);
+    setLiveLevel(level);
+    setIsLiveMode(true);
+    setLiveHistory([]);
+    setLiveExchange(null);
+    setLiveEnded(false);
+    setMessages([]);
+    setPhase("reading");
+    setExchangeIdx(0);
+    setSelectedChoice(null);
+    setQuizCorrect(null);
+    setAnswerMode(null);
+    setUserAnswer("");
+    setCurrentConv({
+      id: convId,
+      title: topic,
+      titleEn: topic,
+      level: level as Conversation["level"],
+      speaker: spk,
+      speakerDescription: desc,
+      exchanges: [],
+    });
+
+    // Fetch first message
+    setIsLiveLoading(true);
+    try {
+      const profile = getLearnerProfile();
+      const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
+
+      const res = await fetch("/api/nihongo/converse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          speaker: spk,
+          speakerDescription: desc,
+          topic,
+          level,
+          learnerProfile,
+          isFirstMessage: true,
+        }),
+      });
+      const exchange = await res.json();
+      if (exchange.error) throw new Error(exchange.error);
+
+      setLiveExchange(exchange);
+      setLiveHistory([{
+        role: "speaker",
+        text: exchange.speakerMessage,
+        translation: exchange.speakerMessageTranslation,
+      }]);
+      setMessages([{
+        speaker: spk,
+        text: exchange.speakerMessage,
+        isUser: false,
+        translation: exchange.speakerMessageTranslation,
+      }]);
+      tokenize(exchange.speakerMessage);
+    } catch (error) {
+      console.error("Live conversation failed:", error);
+      setPhase("select");
+      setIsLiveMode(false);
+    }
+    setIsLiveLoading(false);
+  };
+
+  const fetchNextLiveExchange = async (userText: string) => {
+    setIsLiveLoading(true);
+    try {
+      const profile = getLearnerProfile();
+      const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
+
+      const newHistory = [
+        ...liveHistory,
+        { role: "user" as const, text: userText, translation: "" },
+      ];
+      setLiveHistory(newHistory);
+
+      const res = await fetch("/api/nihongo/converse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          speaker: liveSpeaker,
+          speakerDescription: liveSpeakerDesc,
+          topic: liveTopic,
+          level: liveLevel,
+          conversationHistory: newHistory,
+          userMessage: userText,
+          learnerProfile,
+          isFirstMessage: false,
+        }),
+      });
+      const exchange = await res.json();
+      if (exchange.error) throw new Error(exchange.error);
+
+      if (exchange.shouldEnd) {
+        setLiveEnded(true);
+      }
+
+      setLiveExchange(exchange);
+      setLiveHistory((prev) => [
+        ...prev,
+        {
+          role: "speaker",
+          text: exchange.speakerMessage,
+          translation: exchange.speakerMessageTranslation,
+        },
+      ]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          speaker: liveSpeaker,
+          text: exchange.speakerMessage,
+          isUser: false,
+          translation: exchange.speakerMessageTranslation,
+        },
+      ]);
+      setExchangeIdx((n) => n + 1);
+      tokenize(exchange.speakerMessage);
+      setPhase("reading");
+    } catch (error) {
+      console.error("Live exchange failed:", error);
+    }
+    setIsLiveLoading(false);
   };
 
   useEffect(() => {
@@ -274,7 +421,10 @@ export default function Game() {
 
   const submitAnswer = async (answer: string) => {
     if (!currentConv) return;
-    const exchange = currentConv.exchanges[exchangeIdx];
+    // Use live exchange or scripted exchange
+    const exchange = isLiveMode ? liveExchange : currentConv.exchanges[exchangeIdx];
+    if (!exchange) return;
+
     setUserAnswer(answer);
     setAiFeedback(null);
     setMessages((prev) => [
@@ -316,6 +466,40 @@ export default function Game() {
 
   const nextExchange = () => {
     if (!currentConv) return;
+
+    // Live mode: fetch next exchange from AI
+    if (isLiveMode) {
+      if (liveEnded) {
+        // End the conversation
+        const saved = {
+          ...savedConversations,
+          [currentConv.id]: { messages, completedAt: Date.now() },
+        };
+        setSavedConversations(saved);
+        localStorage.setItem("nihongo-saved-conversations", JSON.stringify(saved));
+        recordConversation({
+          id: currentConv.id,
+          title: liveTopic,
+          level: liveLevel,
+          topic: liveTopic,
+          completedAt: Date.now(),
+          newWordsIntroduced: 0,
+          exchangeCount: exchangeIdx + 1,
+        });
+        rebuildProfile();
+        setPhase("complete");
+        return;
+      }
+      // Fetch next exchange using the user's actual answer
+      setSelectedChoice(null);
+      setQuizCorrect(null);
+      setAnswerMode(null);
+      setUserAnswer("");
+      fetchNextLiveExchange(userAnswer);
+      return;
+    }
+
+    // Scripted mode
     const nextIdx = exchangeIdx + 1;
     if (nextIdx >= currentConv.exchanges.length) {
       const saved = {
@@ -371,13 +555,17 @@ export default function Game() {
     setCurrentConv(null);
     setReplayId(null);
     setMessages([]);
+    setIsLiveMode(false);
+    setLiveExchange(null);
+    setLiveHistory([]);
+    setLiveEnded(false);
   };
 
   const startReplay = (convId: string) => {
     setReplayId(convId);
   };
 
-  const currentExchange = currentConv?.exchanges[exchangeIdx];
+  const currentExchange = isLiveMode ? liveExchange : currentConv?.exchanges[exchangeIdx];
   const progress = currentConv
     ? ((exchangeIdx + 1) / currentConv.exchanges.length) * 100
     : 0;
@@ -638,23 +826,43 @@ export default function Game() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={generateConversation}
-                    disabled={isGenerating}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-extrabold disabled:opacity-60 disabled:cursor-not-allowed hover:from-violet-600 hover:to-purple-700 transition-all shadow-md shadow-violet-200"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={18} />
-                        Generate
-                      </>
-                    )}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        setShowGenerateForm(false);
+                        startLiveConversation(
+                          generateTopic || "free conversation",
+                          generateLevel,
+                        );
+                      }}
+                      disabled={isGenerating}
+                      className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-extrabold disabled:opacity-60 hover:from-emerald-600 hover:to-teal-600 transition-all shadow-md shadow-emerald-200"
+                    >
+                      <MessageCircle size={16} />
+                      Live
+                    </button>
+                    <button
+                      onClick={generateConversation}
+                      disabled={isGenerating}
+                      className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-extrabold disabled:opacity-60 hover:from-violet-600 hover:to-purple-700 transition-all shadow-md shadow-violet-200"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          ...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} />
+                          Offline
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 text-center">
+                    <strong>Live</strong>: AI reacts to your responses in real-time.{" "}
+                    <strong>Offline</strong>: Pre-generated, works without internet.
+                  </p>
                 </div>
               )}
             </div>
@@ -751,7 +959,16 @@ export default function Game() {
             ref={interactionRef}
             className="border-t-2 border-gray-200 bg-white p-4 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
           >
-            {phase === "reading" && (
+            {isLiveLoading && (
+              <div className="flex items-center justify-center gap-3 py-6">
+                <Loader2 size={24} className="text-emerald-500 animate-spin" />
+                <span className="text-gray-500 font-bold">
+                  {liveSpeaker || "Partner"} is typing...
+                </span>
+              </div>
+            )}
+
+            {phase === "reading" && !isLiveLoading && (
               <button
                 onClick={() => setPhase("quiz")}
                 className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-extrabold text-lg hover:bg-emerald-600 active:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
@@ -1016,9 +1233,13 @@ export default function Game() {
                   onClick={nextExchange}
                   className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-extrabold text-lg hover:bg-emerald-600 active:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
                 >
-                  {exchangeIdx + 1 < (currentConv?.exchanges.length ?? 0)
-                    ? "Continue"
-                    : "Finish"}
+                  {isLiveMode
+                    ? liveEnded
+                      ? "Finish"
+                      : "Continue"
+                    : exchangeIdx + 1 < (currentConv?.exchanges.length ?? 0)
+                      ? "Continue"
+                      : "Finish"}
                 </button>
               </div>
             )}
