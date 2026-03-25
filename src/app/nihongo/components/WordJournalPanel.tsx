@@ -95,7 +95,7 @@ export default function WordJournalPanel({
   };
 
   return (
-    <div className="fixed inset-0 md:static md:inset-auto md:w-96 bg-[#f0f0f0] md:border-l flex flex-col z-50">
+    <div className="fixed inset-0 md:static md:inset-auto md:w-96 bg-[#f0f0f0] md:border-l flex flex-col z-50 min-h-0">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export default function WordJournalPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto overscroll-contain">
         {tab === "journal" && (
           <div className="p-3 space-y-3">
             {/* Search */}

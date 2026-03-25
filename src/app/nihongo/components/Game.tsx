@@ -13,7 +13,7 @@ import {
 import { conversations } from "../conversations";
 import { recordTokens, bookmarkWord, getJournalStats } from "../word-journal";
 import { recordGrammarPatterns } from "../grammar-patterns";
-import { getLearnerProfile, rebuildProfile, serializeProfileForPrompt } from "../learner-profile";
+import { getLearnerProfile, rebuildProfile, serializeProfileForPrompt, recordMCResult } from "../learner-profile";
 import { recordConversation } from "../learner-profile";
 import { migrateSRSToJournal } from "../migration";
 import MessageBubble from "./MessageBubble";
@@ -154,9 +154,9 @@ export default function Game() {
   const generateConversation = async () => {
     setIsGenerating(true);
     try {
-      // Include learner profile for adaptive i+1 generation
-      const profile = getLearnerProfile();
-      const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
+      // Rebuild profile for fresh recommendations, then serialize
+      const profile = rebuildProfile();
+      const learnerProfile = serializeProfileForPrompt(profile);
 
       const res = await fetch("/api/nihongo/generate", {
         method: "POST",
@@ -219,8 +219,8 @@ export default function Game() {
     // Fetch first message
     setIsLiveLoading(true);
     try {
-      const profile = getLearnerProfile();
-      const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
+      const profile = rebuildProfile();
+      const learnerProfile = serializeProfileForPrompt(profile);
 
       const res = await fetch("/api/nihongo/converse", {
         method: "POST",
@@ -342,6 +342,12 @@ export default function Game() {
         const data = await res.json();
         if (data.tokens) {
           setTokenCache((prev) => ({ ...prev, [text]: data.tokens }));
+          // Record to word journal + grammar patterns
+          if (currentConv) {
+            recordTokens(data.tokens, currentConv.id, vocabulary);
+            recordGrammarPatterns(data.tokens);
+            setWordCount(getJournalStats().total);
+          }
           return data.tokens;
         }
       } catch {
@@ -353,27 +359,27 @@ export default function Game() {
   );
 
   const vocabulary = useMemo((): VocabWord[] => {
-    if (!currentConv) return [];
     const vocab: VocabWord[] = [];
-    for (let i = 0; i <= exchangeIdx; i++) {
-      if (currentConv.exchanges[i]) {
-        vocab.push(...currentConv.exchanges[i].vocabulary);
+    // Scripted mode: gather from all exchanges up to current
+    if (currentConv) {
+      for (let i = 0; i <= exchangeIdx; i++) {
+        if (currentConv.exchanges[i]) {
+          vocab.push(...currentConv.exchanges[i].vocabulary);
+        }
       }
     }
+    // Live mode: include vocabulary from the current live exchange
+    if (liveExchange?.vocabulary) {
+      vocab.push(...liveExchange.vocabulary);
+    }
     return vocab;
-  }, [currentConv, exchangeIdx]);
+  }, [currentConv, exchangeIdx, liveExchange]);
 
   const handleTokenized = useCallback(
     (text: string, tokens: KuromojiToken[]) => {
       setTokenCache((prev) => ({ ...prev, [text]: tokens }));
-      // Record words + grammar patterns to journal
-      if (currentConv) {
-        recordTokens(tokens, currentConv.id, vocabulary);
-        recordGrammarPatterns(tokens);
-        setWordCount(getJournalStats().total);
-      }
     },
-    [currentConv, vocabulary],
+    [],
   );
 
   const startConversation = useCallback(
@@ -402,9 +408,12 @@ export default function Game() {
   const handleQuizAnswer = (choiceIdx: number) => {
     const exchange = isLiveMode ? liveExchange : currentConv?.exchanges[exchangeIdx];
     if (!exchange) return;
+    const correct = choiceIdx === exchange.correctChoiceIndex;
     setSelectedChoice(choiceIdx);
-    setQuizCorrect(choiceIdx === exchange.correctChoiceIndex);
+    setQuizCorrect(correct);
     setPhase("quiz_result");
+    // Track for difficulty feedback loop
+    recordMCResult(correct);
   };
 
   const continueAfterQuiz = () => {
@@ -768,7 +777,17 @@ export default function Game() {
             <div className="sm:mx-4 mt-4 mb-6">
               {!showGenerateForm ? (
                 <button
-                  onClick={() => setShowGenerateForm(true)}
+                  onClick={() => {
+                    setShowGenerateForm(true);
+                    // Auto-set level from profile
+                    const profile = getLearnerProfile();
+                    if (profile) {
+                      const levelMap: Record<string, "beginner" | "intermediate" | "advanced"> = {
+                        N5: "beginner", N4: "beginner", N3: "intermediate", N2: "advanced", N1: "advanced",
+                      };
+                      setGenerateLevel(levelMap[profile.estimatedLevel] || "intermediate");
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-extrabold text-base hover:from-violet-600 hover:to-purple-700 active:from-violet-700 active:to-purple-800 transition-all shadow-lg shadow-violet-200"
                 >
                   <Wand2 size={20} />
@@ -881,8 +900,8 @@ export default function Game() {
 
   // Active conversation
   return (
-    <div className="min-h-screen flex flex-col bg-[#f0f0f0]">
-      <header className="bg-white border-b-4 border-emerald-400 sticky top-0 z-40">
+    <div className="h-screen flex flex-col bg-[#f0f0f0] overflow-hidden">
+      <header className="bg-white border-b-4 border-emerald-400 shrink-0 z-40">
         <div className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button

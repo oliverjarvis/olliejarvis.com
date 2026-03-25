@@ -63,9 +63,13 @@ export interface LearnerProfile {
   wordsByLevel: Record<number, number>;
   acquiredWords: number;
   grammarPatternsSeen: string[];
+  grammarToIntroduce: string[];
+  wordsToTeach: string[];
   conversationsCompleted: number;
   recentTopics: string[];
   reinforcementWords: string[];
+  mcAccuracy: number; // 0-1, rolling average
+  mcTotal: number;
   startedAt: number;
 }
 
