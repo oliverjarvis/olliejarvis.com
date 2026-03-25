@@ -320,7 +320,7 @@ export default function Game() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLiveLoading]);
 
   useEffect(() => {
     if (phase !== "select" && phase !== "reading") {
@@ -400,8 +400,8 @@ export default function Game() {
   );
 
   const handleQuizAnswer = (choiceIdx: number) => {
-    if (!currentConv) return;
-    const exchange = currentConv.exchanges[exchangeIdx];
+    const exchange = isLiveMode ? liveExchange : currentConv?.exchanges[exchangeIdx];
+    if (!exchange) return;
     setSelectedChoice(choiceIdx);
     setQuizCorrect(choiceIdx === exchange.correctChoiceIndex);
     setPhase("quiz_result");
@@ -951,6 +951,20 @@ export default function Game() {
                 onAddToSRS={handleBookmarkWord}
               />
             ))}
+            {isLiveLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white rounded-2xl rounded-bl-sm px-5 py-4 shadow-md border-2 border-gray-100">
+                  <div className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1.5">
+                    {liveSpeaker || "..."}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -959,15 +973,6 @@ export default function Game() {
             ref={interactionRef}
             className="border-t-2 border-gray-200 bg-white p-4 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
           >
-            {isLiveLoading && (
-              <div className="flex items-center justify-center gap-3 py-6">
-                <Loader2 size={24} className="text-emerald-500 animate-spin" />
-                <span className="text-gray-500 font-bold">
-                  {liveSpeaker || "Partner"} is typing...
-                </span>
-              </div>
-            )}
-
             {phase === "reading" && !isLiveLoading && (
               <button
                 onClick={() => setPhase("quiz")}

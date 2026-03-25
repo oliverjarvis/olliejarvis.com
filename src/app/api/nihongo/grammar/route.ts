@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
 
     const message = await client.messages.create({
       model: "claude-opus-4-6",
-      max_tokens: 500,
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
-          content: `Break down this Japanese sentence: "${text}"`,
+          content: `Break down this Japanese sentence concisely: "${text}"`,
         },
       ],
       system: SYSTEM_PROMPT,
@@ -56,7 +56,29 @@ export async function POST(request: NextRequest) {
       jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
     }
 
-    return NextResponse.json(JSON.parse(jsonStr));
+    try {
+      return NextResponse.json(JSON.parse(jsonStr));
+    } catch {
+      // Truncated JSON — try to salvage what we can
+      // Attempt to close any open arrays/objects
+      let fixed = jsonStr;
+      if (!fixed.endsWith("}")) {
+        fixed = fixed.replace(/,?\s*"[^"]*$/, ""); // remove partial string
+        fixed = fixed.replace(/,?\s*$/, "");
+        const openBrackets = (fixed.match(/\[/g) || []).length - (fixed.match(/\]/g) || []).length;
+        const openBraces = (fixed.match(/\{/g) || []).length - (fixed.match(/\}/g) || []).length;
+        fixed += "]".repeat(Math.max(0, openBrackets));
+        fixed += "}".repeat(Math.max(0, openBraces));
+      }
+      try {
+        return NextResponse.json(JSON.parse(fixed));
+      } catch {
+        return NextResponse.json(
+          { breakdown: [], structure: "Could not parse", note: null },
+          { status: 200 },
+        );
+      }
+    }
   } catch (error) {
     console.error("Grammar error:", error);
     return NextResponse.json(

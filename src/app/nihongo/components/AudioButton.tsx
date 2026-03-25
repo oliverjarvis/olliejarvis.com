@@ -90,13 +90,22 @@ export default function AudioButton({
   }, [text, isPlaying, stop, playUrl]);
 
   return (
-    <button
+    <span
+      role="button"
+      tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
-        speak();
+        if (!isLoading) speak();
       }}
-      disabled={isLoading}
-      className={`inline-flex items-center justify-center p-1 rounded hover:bg-black/5 transition-colors ${className}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!isLoading) speak();
+        }
+      }}
+      aria-disabled={isLoading}
+      className={`inline-flex items-center justify-center p-1 rounded hover:bg-black/5 transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
       title={isPlaying ? "Stop" : "Play audio"}
     >
       {isLoading ? (
@@ -106,7 +115,7 @@ export default function AudioButton({
       ) : (
         <Volume2 size={size} />
       )}
-    </button>
+    </span>
   );
 }
 
