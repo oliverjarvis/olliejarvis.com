@@ -24,6 +24,7 @@ import OnboardingFlow from "./OnboardingFlow";
 import TokenizedText from "./TokenizedText";
 import AudioButton from "./AudioButton";
 import GrammarBreakdown from "./GrammarBreakdown";
+import ProfileDialog from "./ProfileDialog";
 import {
   ArrowLeft,
   BookOpen,
@@ -40,6 +41,7 @@ import {
   Palette,
   Wand2,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { useHighlight } from "../highlight-context";
 
@@ -102,8 +104,8 @@ export default function Game() {
   const [aiConversations, setAiConversations] = useState<Conversation[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateTopic, setGenerateTopic] = useState("");
-  const [generateLevel, setGenerateLevel] = useState<"beginner" | "intermediate" | "advanced">("intermediate");
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   // Live conversation mode
   const [isLiveMode, setIsLiveMode] = useState(false);
@@ -163,7 +165,7 @@ export default function Game() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           topic: generateTopic || undefined,
-          level: generateLevel,
+          level: profile.estimatedLevel,
           learnerProfile,
         }),
       });
@@ -680,9 +682,21 @@ export default function Game() {
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setShowProfile(true)}
+                className="p-2 bg-white/20 backdrop-blur rounded-full text-white hover:bg-white/30 transition-colors"
+                title="Learner profile"
+              >
+                <Settings size={16} />
+              </button>
             </div>
           </div>
         </header>
+
+        <ProfileDialog
+          open={showProfile}
+          onClose={() => setShowProfile(false)}
+        />
 
         <div className="flex flex-1">
           <div className="flex-1 max-w-2xl mx-auto w-full">
@@ -777,17 +791,7 @@ export default function Game() {
             <div className="sm:mx-4 mt-4 mb-6">
               {!showGenerateForm ? (
                 <button
-                  onClick={() => {
-                    setShowGenerateForm(true);
-                    // Auto-set level from profile
-                    const profile = getLearnerProfile();
-                    if (profile) {
-                      const levelMap: Record<string, "beginner" | "intermediate" | "advanced"> = {
-                        N5: "beginner", N4: "beginner", N3: "intermediate", N2: "advanced", N1: "advanced",
-                      };
-                      setGenerateLevel(levelMap[profile.estimatedLevel] || "intermediate");
-                    }
-                  }}
+                  onClick={() => setShowGenerateForm(true)}
                   className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-2xl font-extrabold text-base hover:from-violet-600 hover:to-purple-700 active:from-violet-700 active:to-purple-800 transition-all shadow-lg shadow-violet-200"
                 >
                   <Wand2 size={20} />
@@ -807,6 +811,13 @@ export default function Game() {
                       Cancel
                     </button>
                   </div>
+                  <div className="text-center text-sm">
+                    <span className="text-gray-400">Your level: </span>
+                    <span className="font-extrabold text-emerald-600">
+                      {getLearnerProfile()?.estimatedLevel || "N5"}
+                    </span>
+                    <span className="text-gray-400"> — difficulty adapts automatically</span>
+                  </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                       Topic (optional)
@@ -819,39 +830,14 @@ export default function Game() {
                       className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                      Level
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["beginner", "intermediate", "advanced"] as const).map(
-                        (lvl) => (
-                          <button
-                            key={lvl}
-                            onClick={() => setGenerateLevel(lvl)}
-                            className={`py-2 rounded-xl text-sm font-bold transition-colors ${
-                              generateLevel === lvl
-                                ? lvl === "beginner"
-                                  ? "bg-emerald-500 text-white"
-                                  : lvl === "intermediate"
-                                    ? "bg-amber-500 text-white"
-                                    : "bg-rose-500 text-white"
-                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                            }`}
-                          >
-                            {lvl}
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
                         setShowGenerateForm(false);
+                        const p = getLearnerProfile();
                         startLiveConversation(
                           generateTopic || "free conversation",
-                          generateLevel,
+                          p?.estimatedLevel || "N5",
                         );
                       }}
                       disabled={isGenerating}
