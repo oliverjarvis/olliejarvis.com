@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { KuromojiToken, VocabWord } from "../types";
-import { Plus, Volume2 } from "lucide-react";
+import { Plus, Volume2, Sparkle } from "lucide-react";
 import { speakJapanese } from "./AudioButton";
 import { useHighlight, HighlightLevel } from "../highlight-context";
+import { dbUpdateWordMeaning } from "../db";
 
 // Grammar colors per intensity level
 interface GrammarStyle {
@@ -88,6 +89,7 @@ interface TokenWordProps {
   vocabulary: VocabWord[];
   onAddToSRS: (word: string, reading: string, meaning: string) => void;
   darkBg?: boolean;
+  isNew?: boolean;
 }
 
 export default function TokenWord({
@@ -95,6 +97,7 @@ export default function TokenWord({
   vocabulary,
   onAddToSRS,
   darkBg = false,
+  isNew = false,
 }: TokenWordProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [lookupMeaning, setLookupMeaning] = useState<string | null>(null);
@@ -134,6 +137,11 @@ export default function TokenWord({
       const data = await res.json();
       if (data.results?.length > 0 && data.results[0].meaning) {
         setLookupMeaning(data.results[0].meaning);
+        // Save meaning back to word journal so it shows in the list
+        dbUpdateWordMeaning(
+          token.basic_form || token.surface_form,
+          data.results[0].meaning,
+        );
       }
       if (data.url) setLookupUrl(data.url);
     } catch {
@@ -316,12 +324,15 @@ export default function TokenWord({
           grammarColor.className
             ? `${grammarColor.className} hover:brightness-95`
             : "hover:bg-gray-100"
-        }`}
+        } ${isNew ? "ring-1 ring-amber-300 ring-offset-1" : ""}`}
         onClick={handleClick}
         onMouseEnter={openPopover}
         onMouseLeave={scheduleClose}
       >
         {token.surface_form}
+        {isNew && (
+          <Sparkle size={8} className="inline-block ml-0.5 -mt-2 text-amber-400 fill-amber-400" />
+        )}
       </span>
       {popover}
     </span>

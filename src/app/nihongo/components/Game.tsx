@@ -11,11 +11,31 @@ import {
   VocabWord,
 } from "../types";
 import { conversations } from "../conversations";
-import { recordTokens, bookmarkWord, getJournalStats } from "../word-journal";
-import { recordGrammarPatterns } from "../grammar-patterns";
-import { getLearnerProfile, rebuildProfile, serializeProfileForPrompt, recordMCResult } from "../learner-profile";
-import { recordConversation } from "../learner-profile";
-import { migrateSRSToJournal } from "../migration";
+import {
+  dbGetProfile,
+  dbInitProfile,
+  dbRecordMCResult,
+  dbRebuildProfile,
+  dbRecordTokens,
+  dbBookmarkWord,
+  dbGetJournalStats,
+  dbRecordGrammarPatterns,
+  dbRecordConversation,
+  dbGetSavedConversations,
+  dbSaveSavedConversations,
+  dbGetAiConversations,
+  dbSaveAiConversations,
+  dbEnsureUserRow,
+  dbRecordGrammarPointIds,
+  dbBackfillMeanings,
+  dbGetWordJournal,
+  computeGrammarPointsStats,
+  dbGetGrammarPointsJournal,
+  serializeProfileForPrompt,
+  SavedConversation,
+} from "../db";
+import { findCandidates } from "../grammar-detection";
+import { supabase } from "@/lib/supabase";
 import MessageBubble from "./MessageBubble";
 import MultipleChoice from "./MultipleChoice";
 import AnswerPanel from "./AnswerPanel";
@@ -42,13 +62,9 @@ import {
   Wand2,
   Loader2,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { useHighlight } from "../highlight-context";
-
-interface SavedConversation {
-  messages: DisplayMessage[];
-  completedAt: number;
-}
 
 const LEVEL_COLORS = {
   beginner: {
@@ -92,7 +108,9 @@ export default function Game() {
   const [showJournal, setShowJournal] = useState(false);
   const [journalRefresh, setJournalRefresh] = useState(0);
   const [wordCount, setWordCount] = useState(0);
-  const [hasProfile, setHasProfile] = useState(true); // assume true until checked
+  const [grammarCount, setGrammarCount] = useState(0);
+  const [hasProfile, setHasProfile] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const [aiFeedback, setAiFeedback] = useState<{
     isValid: boolean;
@@ -122,33 +140,53 @@ export default function Game() {
   const [tokenCache, setTokenCache] = useState<
     Record<string, KuromojiToken[]>
   >({});
+  const [newWords, setNewWords] = useState<Set<string>>(new Set());
 
   const [savedConversations, setSavedConversations] = useState<
     Record<string, SavedConversation>
   >({});
   const [replayId, setReplayId] = useState<string | null>(null);
 
+  // Cached profile level for display (avoids async reads in render)
+  const [cachedLevel, setCachedLevel] = useState<string>("N5");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<HTMLDivElement>(null);
 
+  // Load data from Supabase on mount
   useEffect(() => {
-    // Migrate old SRS data if needed
-    migrateSRSToJournal();
+    const loadData = async () => {
+      await dbEnsureUserRow();
 
-    try {
-      const saved = localStorage.getItem("nihongo-saved-conversations");
-      if (saved) setSavedConversations(JSON.parse(saved));
-    } catch {
-      /* ignore */
-    }
-    try {
-      const aiSaved = localStorage.getItem("nihongo-ai-conversations");
-      if (aiSaved) setAiConversations(JSON.parse(aiSaved));
-    } catch {
-      /* ignore */
-    }
-    setWordCount(getJournalStats().total);
-    setHasProfile(!!getLearnerProfile());
+      const [profile, saved, aiSaved, stats, gpJournal, wordJournal] = await Promise.all([
+        dbGetProfile(),
+        dbGetSavedConversations(),
+        dbGetAiConversations(),
+        dbGetJournalStats(),
+        dbGetGrammarPointsJournal(),
+        dbGetWordJournal(),
+      ]);
+
+      setSavedConversations(saved);
+      setAiConversations(aiSaved);
+      setWordCount(stats.total);
+      setGrammarCount(computeGrammarPointsStats(gpJournal).total);
+      setHasProfile(!!profile);
+      if (profile) setCachedLevel(profile.estimatedLevel);
+      setDataLoading(false);
+
+      // Background: backfill meanings for existing words without definitions
+      const wordsWithoutMeaning = Object.values(wordJournal)
+        .filter((w) => !w.meaning && w.encounterCount > 0)
+        .map((w) => w.word);
+      if (wordsWithoutMeaning.length > 0) {
+        dbBackfillMeanings(wordsWithoutMeaning).then(() => {
+          setJournalRefresh((n) => n + 1);
+        });
+      }
+    };
+
+    loadData();
   }, []);
 
   const allConversations = [...conversations, ...aiConversations];
@@ -156,9 +194,9 @@ export default function Game() {
   const generateConversation = async () => {
     setIsGenerating(true);
     try {
-      // Rebuild profile for fresh recommendations, then serialize
-      const profile = rebuildProfile();
+      const profile = await dbRebuildProfile();
       const learnerProfile = serializeProfileForPrompt(profile);
+      setCachedLevel(profile.estimatedLevel);
 
       const res = await fetch("/api/nihongo/generate", {
         method: "POST",
@@ -172,11 +210,10 @@ export default function Game() {
       const data = await res.json();
       if (data.conversation) {
         const conv = data.conversation as Conversation;
-        // Ensure unique ID
         conv.id = `ai-${Date.now()}`;
         const updated = [...aiConversations, conv];
         setAiConversations(updated);
-        localStorage.setItem("nihongo-ai-conversations", JSON.stringify(updated));
+        await dbSaveAiConversations(updated);
         setShowGenerateForm(false);
         setGenerateTopic("");
       }
@@ -202,6 +239,7 @@ export default function Game() {
     setLiveExchange(null);
     setLiveEnded(false);
     setMessages([]);
+    setNewWords(new Set());
     setPhase("reading");
     setExchangeIdx(0);
     setSelectedChoice(null);
@@ -221,7 +259,7 @@ export default function Game() {
     // Fetch first message
     setIsLiveLoading(true);
     try {
-      const profile = rebuildProfile();
+      const profile = await dbRebuildProfile();
       const learnerProfile = serializeProfileForPrompt(profile);
 
       const res = await fetch("/api/nihongo/converse", {
@@ -263,7 +301,7 @@ export default function Game() {
   const fetchNextLiveExchange = async (userText: string) => {
     setIsLiveLoading(true);
     try {
-      const profile = getLearnerProfile();
+      const profile = await dbGetProfile();
       const learnerProfile = profile ? serializeProfileForPrompt(profile) : undefined;
 
       const newHistory = [
@@ -346,9 +384,21 @@ export default function Game() {
           setTokenCache((prev) => ({ ...prev, [text]: data.tokens }));
           // Record to word journal + grammar patterns
           if (currentConv) {
-            recordTokens(data.tokens, currentConv.id, vocabulary);
-            recordGrammarPatterns(data.tokens);
-            setWordCount(getJournalStats().total);
+            const result = await dbRecordTokens(data.tokens, currentConv.id, vocabulary);
+            if (result.newWords.size > 0) {
+              setNewWords((prev) => new Set([...prev, ...result.newWords]));
+              // Background: lookup meanings for new words without definitions
+              dbBackfillMeanings([...result.newWords]).then(() => {
+                setJournalRefresh((n) => n + 1);
+              });
+            }
+            await dbRecordGrammarPatterns(data.tokens);
+            const stats = await dbGetJournalStats();
+            setWordCount(stats.total);
+            setJournalRefresh((n) => n + 1);
+
+            // Grammar point detection (background — don't await)
+            detectGrammarPoints(text, data.tokens, currentConv.id);
           }
           return data.tokens;
         }
@@ -360,9 +410,42 @@ export default function Game() {
     [tokenCache],
   );
 
+  // Grammar point detection: runs in background after tokenization
+  const detectGrammarPoints = useCallback(
+    async (text: string, tokens: KuromojiToken[], conversationId: string) => {
+      try {
+        const candidates = findCandidates(text, tokens);
+        if (candidates.length === 0) return;
+
+        // Send candidates to LLM for confirmation
+        const res = await fetch("/api/nihongo/grammar-detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sentence: text,
+            candidates: candidates.map((c) => ({
+              id: c.id,
+              name: c.name,
+              meaning: c.meaning,
+            })),
+          }),
+        });
+        const data = await res.json();
+        if (data.confirmedIds?.length > 0) {
+          await dbRecordGrammarPointIds(data.confirmedIds, conversationId);
+          const gpJournal = await dbGetGrammarPointsJournal();
+          setGrammarCount(computeGrammarPointsStats(gpJournal).total);
+          setJournalRefresh((n) => n + 1);
+        }
+      } catch (error) {
+        console.error("Grammar detection failed:", error);
+      }
+    },
+    [],
+  );
+
   const vocabulary = useMemo((): VocabWord[] => {
     const vocab: VocabWord[] = [];
-    // Scripted mode: gather from all exchanges up to current
     if (currentConv) {
       for (let i = 0; i <= exchangeIdx; i++) {
         if (currentConv.exchanges[i]) {
@@ -370,7 +453,6 @@ export default function Game() {
         }
       }
     }
-    // Live mode: include vocabulary from the current live exchange
     if (liveExchange?.vocabulary) {
       vocab.push(...liveExchange.vocabulary);
     }
@@ -389,6 +471,7 @@ export default function Game() {
       setCurrentConv(conv);
       setExchangeIdx(0);
       setReplayId(null);
+      setNewWords(new Set());
       const exchange = conv.exchanges[0];
       const firstMessage: DisplayMessage = {
         speaker: conv.speaker,
@@ -407,15 +490,14 @@ export default function Game() {
     [tokenize],
   );
 
-  const handleQuizAnswer = (choiceIdx: number) => {
+  const handleQuizAnswer = async (choiceIdx: number) => {
     const exchange = isLiveMode ? liveExchange : currentConv?.exchanges[exchangeIdx];
     if (!exchange) return;
     const correct = choiceIdx === exchange.correctChoiceIndex;
     setSelectedChoice(choiceIdx);
     setQuizCorrect(correct);
     setPhase("quiz_result");
-    // Track for difficulty feedback loop
-    recordMCResult(correct);
+    await dbRecordMCResult(correct);
   };
 
   const continueAfterQuiz = () => {
@@ -432,7 +514,6 @@ export default function Game() {
 
   const submitAnswer = async (answer: string) => {
     if (!currentConv) return;
-    // Use live exchange or scripted exchange
     const exchange = isLiveMode ? liveExchange : currentConv.exchanges[exchangeIdx];
     if (!exchange) return;
 
@@ -450,7 +531,6 @@ export default function Game() {
     setPhase("answer_feedback");
     tokenize(answer);
 
-    // Fetch AI feedback in background
     setIsFeedbackLoading(true);
     try {
       const res = await fetch("/api/nihongo/feedback", {
@@ -475,20 +555,19 @@ export default function Game() {
     setIsFeedbackLoading(false);
   };
 
-  const nextExchange = () => {
+  const nextExchange = async () => {
     if (!currentConv) return;
 
     // Live mode: fetch next exchange from AI
     if (isLiveMode) {
       if (liveEnded) {
-        // End the conversation
         const saved = {
           ...savedConversations,
           [currentConv.id]: { messages, completedAt: Date.now() },
         };
         setSavedConversations(saved);
-        localStorage.setItem("nihongo-saved-conversations", JSON.stringify(saved));
-        recordConversation({
+        await dbSaveSavedConversations(saved);
+        await dbRecordConversation({
           id: currentConv.id,
           title: liveTopic,
           level: liveLevel,
@@ -497,11 +576,10 @@ export default function Game() {
           newWordsIntroduced: 0,
           exchangeCount: exchangeIdx + 1,
         });
-        rebuildProfile();
+        await dbRebuildProfile();
         setPhase("complete");
         return;
       }
-      // Fetch next exchange using the user's actual answer
       setSelectedChoice(null);
       setQuizCorrect(null);
       setAnswerMode(null);
@@ -518,21 +596,17 @@ export default function Game() {
         [currentConv.id]: { messages, completedAt: Date.now() },
       };
       setSavedConversations(saved);
-      localStorage.setItem(
-        "nihongo-saved-conversations",
-        JSON.stringify(saved),
-      );
-      // Record to conversation history + rebuild profile
-      recordConversation({
+      await dbSaveSavedConversations(saved);
+      await dbRecordConversation({
         id: currentConv.id,
         title: currentConv.title,
         level: currentConv.level,
         topic: currentConv.titleEn,
         completedAt: Date.now(),
-        newWordsIntroduced: 0, // TODO: track this
+        newWordsIntroduced: 0,
         exchangeCount: currentConv.exchanges.length,
       });
-      rebuildProfile();
+      await dbRebuildProfile();
       setPhase("complete");
       return;
     }
@@ -555,9 +629,10 @@ export default function Game() {
     setPhase("reading");
   };
 
-  const handleBookmarkWord = (word: string, reading: string, meaning: string) => {
-    bookmarkWord(word, reading, meaning);
-    setWordCount(getJournalStats().total);
+  const handleBookmarkWord = async (word: string, reading: string, meaning: string) => {
+    await dbBookmarkWord(word, reading, meaning);
+    const stats = await dbGetJournalStats();
+    setWordCount(stats.total);
     setJournalRefresh((n) => n + 1);
   };
 
@@ -576,10 +651,23 @@ export default function Game() {
     setReplayId(convId);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   const currentExchange = isLiveMode ? liveExchange : currentConv?.exchanges[exchangeIdx];
   const progress = currentConv
     ? ((exchangeIdx + 1) / currentConv.exchanges.length) * 100
     : 0;
+
+  // Loading state
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen bg-[#f0f0f0] flex items-center justify-center">
+        <Loader2 size={32} className="text-emerald-500 animate-spin" />
+      </div>
+    );
+  }
 
   // Replay view
   if (replayId) {
@@ -675,10 +763,10 @@ export default function Game() {
                 className="flex items-center gap-1.5 px-4 py-2 bg-white/20 backdrop-blur rounded-full text-sm font-bold text-white hover:bg-white/30 transition-colors"
               >
                 <BookOpen size={16} />
-                Words
-                {wordCount > 0 && (
+                Journal
+                {(wordCount > 0 || grammarCount > 0) && (
                   <span className="bg-emerald-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                    {wordCount}
+                    {wordCount + grammarCount}
                   </span>
                 )}
               </button>
@@ -688,6 +776,13 @@ export default function Game() {
                 title="Learner profile"
               >
                 <Settings size={16} />
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="p-2 bg-white/20 backdrop-blur rounded-full text-white hover:bg-white/30 transition-colors"
+                title="Sign out"
+              >
+                <LogOut size={16} />
               </button>
             </div>
           </div>
@@ -814,7 +909,7 @@ export default function Game() {
                   <div className="text-center text-sm">
                     <span className="text-gray-400">Your level: </span>
                     <span className="font-extrabold text-emerald-600">
-                      {getLearnerProfile()?.estimatedLevel || "N5"}
+                      {cachedLevel}
                     </span>
                     <span className="text-gray-400"> — difficulty adapts automatically</span>
                   </div>
@@ -832,9 +927,9 @@ export default function Game() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setShowGenerateForm(false);
-                        const p = getLearnerProfile();
+                        const p = await dbGetProfile();
                         startLiveConversation(
                           generateTopic || "free conversation",
                           p?.estimatedLevel || "N5",
@@ -925,10 +1020,10 @@ export default function Game() {
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 rounded-full text-sm font-bold text-emerald-600 hover:bg-emerald-100 transition-colors"
             >
               <BookOpen size={14} />
-              Words
-              {wordCount > 0 && (
+              Journal
+              {(wordCount > 0 || grammarCount > 0) && (
                 <span className="bg-emerald-400 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center font-bold">
-                  {wordCount}
+                  {wordCount + grammarCount}
                 </span>
               )}
             </button>
@@ -954,6 +1049,7 @@ export default function Game() {
                 vocabulary={vocabulary}
                 tokens={tokenCache[msg.text]}
                 onAddToSRS={handleBookmarkWord}
+              newWords={newWords}
               />
             ))}
             {isLiveLoading && (
@@ -1162,6 +1258,7 @@ export default function Game() {
                       onAddToSRS={handleBookmarkWord}
                       tokenCache={tokenCache}
                       onTokenized={handleTokenized}
+                    newWords={newWords}
                     />
                   </div>
                   <GrammarBreakdown text={userAnswer} />
@@ -1177,6 +1274,7 @@ export default function Game() {
                       onAddToSRS={handleBookmarkWord}
                       tokenCache={tokenCache}
                       onTokenized={handleTokenized}
+                    newWords={newWords}
                     />
                   </div>
                   <div className="text-sm text-gray-500 italic">

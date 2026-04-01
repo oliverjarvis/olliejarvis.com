@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LearnerProfile } from "../types";
-import { initProfile } from "../learner-profile";
+import { dbInitProfile } from "../db";
 import { MessageCircle, ChevronRight, Sparkles } from "lucide-react";
 
 interface OnboardingFlowProps {
@@ -67,9 +67,9 @@ const LEVELS: {
 export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [selected, setSelected] = useState<LearnerProfile["estimatedLevel"] | null>(null);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!selected) return;
-    const profile = initProfile(selected);
+    const profile = await dbInitProfile(selected);
     onComplete(profile);
   };
 

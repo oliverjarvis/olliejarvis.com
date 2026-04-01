@@ -79,6 +79,21 @@ export interface GrammarPatternEntry {
   firstSeen: number;
 }
 
+// Grammar point journal — tracks encounter with specific BunPro-style grammar points
+export interface GrammarPointJournalEntry {
+  id: number; // Grammar point ID from grammar-points-db
+  name: string; // Japanese grammar form
+  meaning: string; // English meaning
+  jlptLevel: number; // 5=N5...1=N1, 0=non-JLPT
+  url: string; // BunPro grammar page URL
+  encounterCount: number;
+  conversationIds: string[];
+  firstSeen: number;
+  lastSeen: number;
+  naturallyAcquired: boolean; // encounterCount >= 50
+  bookmarked: boolean;
+}
+
 export interface ConversationRecord {
   id: string;
   title: string;

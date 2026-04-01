@@ -97,6 +97,9 @@ export async function POST(request: NextRequest) {
       です: "copula (polite)",
       う: "volitional",
       よう: "volitional",
+      べし: "should/ought to (べき)",
+      まい: "will not / probably not",
+      らしい: "seems like / apparently",
     };
 
     const NON_INDEPENDENT_NOTES: Record<string, string> = {
@@ -111,6 +114,34 @@ export async function POST(request: NextRequest) {
       あげる: "do ~ for someone",
       くれる: "someone does ~ for me",
       くださる: "someone does ~ for me (polite)",
+    };
+
+    // Verb suffix notes (接尾 — causative/passive forms)
+    const SUFFIX_VERB_NOTES: Record<string, string> = {
+      せる: "causative",
+      させる: "causative",
+      れる: "passive",
+      られる: "passive/potential",
+    };
+
+    // Conjunction particle notes (接続助詞 — not all are te-form)
+    const CONJUNCTION_NOTES: Record<string, string> = {
+      て: "te-form",
+      で: "te-form",
+      ので: "because/since (ので)",
+      から: "because/since (から)",
+      ながら: "while ~ing",
+      けど: "but/although",
+      けれど: "but/although",
+      けれども: "but/although",
+      たり: "things like ~",
+      たら: "if/when (conditional)",
+      ら: "if/when (conditional)",
+      ば: "if (ば-conditional)",
+      し: "and also / reason listing",
+      のに: "despite / although",
+      ても: "even if/though",
+      でも: "even if/though",
     };
 
     // Merge auxiliary/non-independent morphemes into the preceding token
@@ -131,6 +162,7 @@ export async function POST(request: NextRequest) {
         (t.pos === "助動詞" ||
           (t.pos === "助詞" && t.pos_detail_1 === "接続助詞") ||
           (t.pos === "動詞" && t.pos_detail_1 === "非自立") ||
+          (t.pos === "動詞" && t.pos_detail_1 === "接尾") ||
           (t.pos === "形容詞" && t.pos_detail_1 === "非自立"));
 
       if (shouldMerge) {
@@ -152,9 +184,13 @@ export async function POST(request: NextRequest) {
       for (let j = 1; j < parts.length; j++) {
         const p = parts[j];
         if (p.pos === "助詞" && p.pos_detail_1 === "接続助詞") {
-          notes.push("te-form");
+          const conjNote = CONJUNCTION_NOTES[p.surface_form] || CONJUNCTION_NOTES[p.basic_form];
+          notes.push(conjNote || "te-form");
         } else if (p.pos === "動詞" && p.pos_detail_1 === "非自立") {
           const note = NON_INDEPENDENT_NOTES[p.basic_form];
+          if (note) notes.push(note);
+        } else if (p.pos === "動詞" && p.pos_detail_1 === "接尾") {
+          const note = SUFFIX_VERB_NOTES[p.basic_form];
           if (note) notes.push(note);
         } else if (p.pos === "助動詞") {
           const note = AUXILIARY_NOTES[p.basic_form];

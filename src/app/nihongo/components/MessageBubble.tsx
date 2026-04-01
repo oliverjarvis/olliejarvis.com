@@ -12,6 +12,7 @@ interface MessageBubbleProps {
   vocabulary: VocabWord[];
   tokens?: KuromojiToken[];
   onAddToSRS: (word: string, reading: string, meaning: string) => void;
+  newWords?: Set<string>;
 }
 
 export default function MessageBubble({
@@ -19,6 +20,7 @@ export default function MessageBubble({
   vocabulary,
   tokens,
   onAddToSRS,
+  newWords,
 }: MessageBubbleProps) {
   const [showTranslation, setShowTranslation] = useState(false);
 
@@ -47,6 +49,7 @@ export default function MessageBubble({
                   vocabulary={vocabulary}
                   onAddToSRS={onAddToSRS}
                   darkBg={isUser}
+                  isNew={newWords?.has(token.basic_form || token.surface_form)}
                 />
               ))
             : message.text}

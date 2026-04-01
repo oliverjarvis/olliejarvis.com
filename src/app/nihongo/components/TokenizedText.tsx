@@ -11,6 +11,7 @@ interface TokenizedTextProps {
   onAddToSRS: (word: string, reading: string, meaning: string) => void;
   tokenCache: Record<string, KuromojiToken[]>;
   onTokenized: (text: string, tokens: KuromojiToken[]) => void;
+  newWords?: Set<string>;
   showAudio?: boolean;
   audioSize?: number;
   className?: string;
@@ -23,6 +24,7 @@ export default function TokenizedText({
   onAddToSRS,
   tokenCache,
   onTokenized,
+  newWords,
   showAudio = true,
   audioSize = 14,
   className = "",
@@ -65,6 +67,7 @@ export default function TokenizedText({
               vocabulary={vocabulary}
               onAddToSRS={onAddToSRS}
               darkBg={darkBg}
+              isNew={newWords?.has(token.basic_form || token.surface_form)}
             />
           ))
         : text}

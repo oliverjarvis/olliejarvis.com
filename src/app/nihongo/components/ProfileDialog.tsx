@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { LearnerProfile } from "../types";
 import {
-  getLearnerProfile,
-  saveLearnerProfile,
-  rebuildProfile,
+  dbGetProfile,
+  dbSaveProfile,
+  dbRebuildProfile,
+  dbGetGrammarPointsJournal,
+  computeGrammarPointsStats,
   serializeProfileForPrompt,
-} from "../learner-profile";
+} from "../db";
+import { supabase } from "@/lib/supabase";
 import {
   X,
   Settings,
@@ -32,47 +35,44 @@ const LEVEL_OPTIONS: LearnerProfile["estimatedLevel"][] = [
 export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
   const [showRawPrompt, setShowRawPrompt] = useState(false);
+  const [gpStats, setGpStats] = useState({ total: 0, acquired: 0, bookmarked: 0, byLevel: {} as Record<number, number> });
 
   useEffect(() => {
     if (open) {
-      const p = rebuildProfile();
-      setProfile(p);
+      dbRebuildProfile().then((p) => setProfile(p));
+      dbGetGrammarPointsJournal().then((j) => setGpStats(computeGrammarPointsStats(j)));
     }
   }, [open]);
 
   if (!open || !profile) return null;
 
-  const overrideLevel = (level: LearnerProfile["estimatedLevel"]) => {
+  const overrideLevel = async (level: LearnerProfile["estimatedLevel"]) => {
     profile.estimatedLevel = level;
-    saveLearnerProfile(profile);
+    await dbSaveProfile(profile);
     setProfile({ ...profile });
   };
 
-  const resetProfile = () => {
+  const resetProfile = async () => {
     if (
       confirm(
         "Reset your learner profile? Your word journal will be kept, but level and stats will be recalculated.",
       )
     ) {
-      const fresh = rebuildProfile();
+      const fresh = await dbRebuildProfile();
       setProfile(fresh);
     }
   };
 
-  const clearAllData = () => {
+  const clearAllData = async () => {
     if (
       confirm(
         "Delete ALL data? This removes your word journal, conversation history, and profile. This cannot be undone.",
       )
     ) {
-      localStorage.removeItem("nihongo-learner-profile");
-      localStorage.removeItem("nihongo-word-journal");
-      localStorage.removeItem("nihongo-grammar-patterns");
-      localStorage.removeItem("nihongo-conversation-history");
-      localStorage.removeItem("nihongo-saved-conversations");
-      localStorage.removeItem("nihongo-ai-conversations");
-      localStorage.removeItem("nihongo-srs-cards");
-      localStorage.removeItem("nihongo-srs-migrated");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("user_data").delete().eq("user_id", user.id);
+      }
       window.location.reload();
     }
   };
@@ -175,6 +175,39 @@ export default function ProfileDialog({ open, onClose }: ProfileDialogProps) {
               { level: 1, target: 10000, color: "bg-rose-400" },
             ].map(({ level, target, color }) => {
               const count = profile.wordsByLevel[level] || 0;
+              const pct = Math.min(100, (count / target) * 100);
+              return (
+                <div key={level} className="mb-2">
+                  <div className="flex items-center justify-between text-xs mb-0.5">
+                    <span className="font-bold text-gray-600">N{level}</span>
+                    <span className="text-gray-400">
+                      {count}/{target} ({Math.round(pct)}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${color} rounded-full transition-all`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* JLPT Grammar Coverage */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">
+              JLPT Grammar Coverage ({gpStats.total} seen)
+            </label>
+            {[
+              { level: 5, target: 126, color: "bg-emerald-400" },
+              { level: 4, target: 177, color: "bg-sky-400" },
+              { level: 3, target: 218, color: "bg-amber-400" },
+              { level: 2, target: 217, color: "bg-violet-400" },
+              { level: 1, target: 184, color: "bg-rose-400" },
+            ].map(({ level, target, color }) => {
+              const count = gpStats.byLevel[level] || 0;
               const pct = Math.min(100, (count / target) * 100);
               return (
                 <div key={level} className="mb-2">
