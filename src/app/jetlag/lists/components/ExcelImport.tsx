@@ -8,7 +8,11 @@ import { ChangeEvent, useRef, useState } from "react";
 import readXlsxFile from "read-excel-file/browser";
 import { Loader2, Upload } from "lucide-react";
 
-type ImportItem = { text: string; extra?: Record<string, string> };
+type ImportItem = {
+  text: string;
+  description?: string;
+  extra?: Record<string, string>;
+};
 
 // A single parsed spreadsheet cell / row. read-excel-file@9 ships `.d.ts`
 // declarations whose default-export overload incorrectly resolves to
@@ -21,16 +25,18 @@ type Row = Cell[];
  * Parse the rows returned by read-excel-file into list items.
  *
  *  - 0 rows -> nothing.
- *  - >1 columns -> first row is a header; every later row's first column is the
- *    item text and the remaining columns become `extra` metadata keyed by header.
- *  - 1 column -> no header; every row is an item.
+ *  - 1 column -> no header; every row is an item title (no description).
+ *  - >1 columns -> first row is a header. Column 0 is the title. The
+ *    description comes from a column headed "description" (case-insensitive) if
+ *    present, otherwise column 1. Any remaining columns become `extra` metadata
+ *    keyed by header.
  */
 export function parseRows(rows: Row[]): ImportItem[] {
   if (rows.length === 0) return [];
 
   const columnCount = Math.max(...rows.map((r) => r.length));
 
-  // Single-column sheets have no header: every row is an item.
+  // Single-column sheets have no header: every row is an item title.
   if (columnCount <= 1) {
     const items: ImportItem[] = [];
     for (const row of rows) {
@@ -42,14 +48,21 @@ export function parseRows(rows: Row[]): ImportItem[] {
 
   // Multi-column sheets: row 0 is the header.
   const header = rows[0].map((cell) => String(cell ?? "").trim());
+  const titleCol = 0;
+  const namedDesc = header.findIndex((h) => h.toLowerCase() === "description");
+  const descCol = namedDesc !== -1 ? namedDesc : 1;
+
   const items: ImportItem[] = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
-    const text = String(row[0] ?? "").trim();
+    const text = String(row[titleCol] ?? "").trim();
     if (!text) continue;
 
+    const description = String(row[descCol] ?? "").trim() || undefined;
+
     const extra: Record<string, string> = {};
-    for (let c = 1; c < header.length; c++) {
+    for (let c = 0; c < header.length; c++) {
+      if (c === titleCol || c === descCol) continue;
       const key = header[c];
       if (!key) continue;
       const value = String(row[c] ?? "").trim();
@@ -57,9 +70,10 @@ export function parseRows(rows: Row[]): ImportItem[] {
       extra[key] = value;
     }
 
-    items.push(
-      Object.keys(extra).length ? { text, extra } : { text },
-    );
+    const item: ImportItem = { text };
+    if (description) item.description = description;
+    if (Object.keys(extra).length) item.extra = extra;
+    items.push(item);
   }
   return items;
 }
@@ -128,7 +142,8 @@ export function ExcelImport({
       </label>
 
       <p className="text-xs text-neutral-500">
-        First column = item text; any extra columns are stored as metadata.
+        First column = title, second (or a “description” column) = description;
+        any extra columns are stored as metadata.
       </p>
 
       {result && (

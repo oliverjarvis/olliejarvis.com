@@ -10,6 +10,7 @@
 
 import type * as lists from "../lists.js";
 import type * as messages from "../messages.js";
+import type * as rules from "../rules.js";
 import type * as teams from "../teams.js";
 import type * as threads from "../threads.js";
 import type * as typing from "../typing.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   lists: typeof lists;
   messages: typeof messages;
+  rules: typeof rules;
   teams: typeof teams;
   threads: typeof threads;
   typing: typeof typing;

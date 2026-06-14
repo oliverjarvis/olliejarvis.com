@@ -15,10 +15,10 @@ describe("lists", () => {
       const listId = await t.mutation(api.lists.create, { name: "Challenges" });
       expect(listId).toBeDefined();
 
-      // First batch of items.
+      // First batch of items (alpha carries a description).
       const firstCount = await t.mutation(api.lists.addItems, {
         listId,
-        items: [{ text: "alpha" }, { text: "beta" }],
+        items: [{ text: "alpha", description: "first letter" }, { text: "beta" }],
       });
       expect(firstCount).toBe(2);
 
@@ -42,6 +42,10 @@ describe("lists", () => {
         "delta",
       ]);
       expect(items.map((i) => i.order)).toEqual([0, 1, 2, 3]);
+
+      // Descriptions round-trip; items without one have undefined.
+      expect(items[0].description).toBe("first letter");
+      expect(items[1].description).toBeUndefined();
 
       // list() reports the correct itemCount.
       const all = await t.query(api.lists.list, {});
@@ -163,6 +167,7 @@ describe("lists", () => {
         await ctx.db.insert("listItems", {
           listId,
           text: "first-item",
+          description: "do a thing",
           order: 0,
         });
         await ctx.db.insert("listItems", {
@@ -201,6 +206,7 @@ describe("lists", () => {
         // random=0 => value = floor(0*6)+1 = 1, index = (1-1)%3 = 0 => first item.
         expect(result.value).toBe(1);
         expect(result.itemText).toBe("first-item");
+        expect(result.itemDescription).toBe("do a thing");
       } finally {
         randomSpy.mockRestore();
       }
@@ -212,6 +218,7 @@ describe("lists", () => {
       );
       expect(systemMsg).toBeDefined();
       expect(systemMsg?.dice?.itemText).toBe("first-item");
+      expect(systemMsg?.dice?.itemDescription).toBe("do a thing");
       expect(systemMsg?.dice?.value).toBe(1);
       expect(systemMsg?.dice?.sides).toBe(6);
       expect(systemMsg?.dice?.listName).toBe("Picks");

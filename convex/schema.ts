@@ -43,6 +43,7 @@ export default defineSchema({
         listId: v.id("lists"),
         listName: v.string(),
         itemText: v.string(),
+        itemDescription: v.optional(v.string()),
       }),
     ),
     createdAt: v.number(),
@@ -64,14 +65,25 @@ export default defineSchema({
     createdAt: v.number(),
   }),
 
-  // An item within a list. `order` is the 0-based position (used by dice mapping).
+  // An item within a list (a "challenge"). `text` is the title; `description`
+  // is optional longer detail. `order` is the 0-based position (dice mapping).
   listItems: defineTable({
     listId: v.id("lists"),
     text: v.string(),
+    description: v.optional(v.string()),
     order: v.number(),
     // extra spreadsheet columns keyed by header, preserved as strings
     extra: v.optional(v.record(v.string(), v.string())),
   }).index("by_list", ["listId", "order"]),
+
+  // A game rule, editable on the Rules page. `order` controls display order.
+  rules: defineTable({
+    title: v.string(),
+    body: v.string(),
+    order: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
 
   // A generated team. Each team gets its own chat thread.
   teams: defineTable({

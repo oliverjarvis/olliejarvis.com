@@ -60,6 +60,7 @@ export const addItems = mutation({
     items: v.array(
       v.object({
         text: v.string(),
+        description: v.optional(v.string()),
         extra: v.optional(v.record(v.string(), v.string())),
       }),
     ),
@@ -80,6 +81,7 @@ export const addItems = mutation({
       await ctx.db.insert("listItems", {
         listId: args.listId,
         text: item.text,
+        description: item.description,
         order: maxOrder + index,
         extra: item.extra,
       });
@@ -137,20 +139,25 @@ export const rollDice = mutation({
 
     const now = Date.now();
     const listName = list?.name ?? "";
+    const description = chosen.description;
 
-    // Post the result as a system message, carrying the dice metadata.
+    // Post the result as a system message, carrying the dice metadata. The body
+    // includes the title and (when present) the description so it reads well
+    // anywhere the structured `dice` fields aren't used.
+    const descSuffix = description ? ` — ${description}` : "";
     await ctx.db.insert("messages", {
       threadId: args.threadId,
       userId: undefined, // system messages have no user
-      authorName: `${rollerName} rolled a d${args.sides}`,
+      authorName: rollerName,
       kind: "system",
-      body: `🎲 ${rollerName} rolled ${value} on a d${args.sides} → "${chosen.text}" (from ${listName})`,
+      body: `🎲 ${rollerName} rolled ${value} on a d${args.sides} → "${chosen.text}"${descSuffix} (from ${listName})`,
       dice: {
         sides: args.sides,
         value,
         listId: args.listId,
         listName,
         itemText: chosen.text,
+        itemDescription: description,
       },
       createdAt: now,
     });
@@ -158,6 +165,6 @@ export const rollDice = mutation({
     // Bump the thread so it sorts to the top of recent conversations.
     await ctx.db.patch(args.threadId, { lastMessageAt: now });
 
-    return { value, itemText: chosen.text };
+    return { value, itemText: chosen.text, itemDescription: description };
   },
 });

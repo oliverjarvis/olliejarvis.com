@@ -7,6 +7,7 @@ import { useIdentity } from "./IdentityProvider";
 const LINKS = [
   { href: "/jetlag", label: "Chat" },
   { href: "/jetlag/lists", label: "Lists" },
+  { href: "/jetlag/rules", label: "Rules" },
   { href: "/jetlag/teams", label: "Teams" },
 ];
 

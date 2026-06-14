@@ -19,18 +19,38 @@ type Props = {
  */
 export function MessageBubble({ message, mine }: Props) {
   if (message.kind === "system") {
-    const isDice = !!message.dice;
+    const dice = message.dice;
+    // Dice rolls render as a card showing the rolled item's title + description.
+    if (dice) {
+      return (
+        <div className="flex justify-center px-2 py-1.5">
+          <div className="max-w-[85%] rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-100">
+            <div className="flex items-center gap-1.5 text-xs font-medium">
+              <span aria-hidden>🎲</span>
+              <span>
+                {message.authorName} rolled {dice.value} (d{dice.sides})
+              </span>
+            </div>
+            <div className="mt-1 break-words text-sm font-semibold">
+              {dice.itemText}
+            </div>
+            {dice.itemDescription && (
+              <div className="mt-0.5 whitespace-pre-wrap break-words text-xs text-amber-800 dark:text-amber-200/90">
+                {dice.itemDescription}
+              </div>
+            )}
+            <div className="mt-1 text-[10px] uppercase tracking-wide text-amber-700/70 dark:text-amber-300/60">
+              from {dice.listName}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // Other system messages (e.g. "Team formed") render as a muted pill.
     return (
       <div className="flex justify-center px-2 py-1">
-        <div
-          className={
-            isDice
-              ? "inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-200"
-              : "rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
-          }
-        >
-          {isDice && <span aria-hidden>🎲</span>}
-          <span>{message.body}</span>
+        <div className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+          {message.body}
         </div>
       </div>
     );

@@ -12,6 +12,7 @@ export default function ListsPage() {
   const [newListName, setNewListName] = useState("");
   const [creating, setCreating] = useState(false);
   const [manualText, setManualText] = useState("");
+  const [manualDesc, setManualDesc] = useState("");
   const [addingManual, setAddingManual] = useState(false);
 
   const lists = useQuery(api.lists.list);
@@ -49,10 +50,12 @@ export default function ListsPage() {
     e.preventDefault();
     const text = manualText.trim();
     if (!text || !selectedListId) return;
+    const description = manualDesc.trim() || undefined;
     setAddingManual(true);
     try {
-      await addItems({ listId: selectedListId, items: [{ text }] });
+      await addItems({ listId: selectedListId, items: [{ text, description }] });
       setManualText("");
+      setManualDesc("");
     } finally {
       setAddingManual(false);
     }
@@ -179,25 +182,33 @@ export default function ListsPage() {
                 }
               />
 
-              <form onSubmit={handleManualAdd} className="flex items-center gap-2">
+              <form onSubmit={handleManualAdd} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={manualText}
+                    onChange={(e) => setManualText(e.target.value)}
+                    placeholder="Challenge title…"
+                    className="min-w-0 flex-1 rounded-md border border-neutral-300 bg-transparent px-3 py-1.5 text-sm font-medium outline-none focus:border-neutral-500 dark:border-neutral-700"
+                  />
+                  <button
+                    type="submit"
+                    disabled={addingManual || !manualText.trim()}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                  >
+                    {addingManual ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    Add
+                  </button>
+                </div>
                 <input
-                  value={manualText}
-                  onChange={(e) => setManualText(e.target.value)}
-                  placeholder="Add a single item…"
-                  className="min-w-0 flex-1 rounded-md border border-neutral-300 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700"
+                  value={manualDesc}
+                  onChange={(e) => setManualDesc(e.target.value)}
+                  placeholder="Description (optional)…"
+                  className="w-full rounded-md border border-neutral-300 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700"
                 />
-                <button
-                  type="submit"
-                  disabled={addingManual || !manualText.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm transition hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-700 dark:hover:bg-neutral-800"
-                >
-                  {addingManual ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Add
-                </button>
               </form>
 
               <p className="flex items-center gap-1.5 text-xs text-neutral-500">
@@ -223,7 +234,12 @@ export default function ListsPage() {
                         {i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="break-words">{item.text}</p>
+                        <p className="break-words font-medium">{item.text}</p>
+                        {item.description && (
+                          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-neutral-500 dark:text-neutral-400">
+                            {item.description}
+                          </p>
+                        )}
                         {item.extra && Object.keys(item.extra).length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {Object.entries(item.extra).map(([k, val]) => (
