@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import styles from "../traces.module.css";
+import ContactEmail from "../ContactEmail";
 import { LegalPageHeader, LegalSection } from "../LegalSection";
 
 export const metadata: Metadata = {
@@ -99,10 +100,7 @@ export default function PrivacyPolicyPage() {
           Because your account is anonymous, the simplest way to delete your
           data is to delete the app. To request deletion of gameplay data
           associated with your device, contact us at{" "}
-          <a href="mailto:oliversimonjarvis@gmail.com">
-            oliversimonjarvis@gmail.com
-          </a>
-          .
+          <ContactEmail />.
         </p>
       </LegalSection>
 
@@ -130,11 +128,7 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection number={9} title="Contact">
         <p>
-          Questions? Email{" "}
-          <a href="mailto:oliversimonjarvis@gmail.com">
-            oliversimonjarvis@gmail.com
-          </a>
-          .
+          Questions? Email <ContactEmail />.
         </p>
       </LegalSection>
     </article>
