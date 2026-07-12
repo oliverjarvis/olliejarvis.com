@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import styles from "../traces.module.css";
+import ContactEmail from "../ContactEmail";
 import { LegalPageHeader, LegalSection } from "../LegalSection";
 
 export const metadata: Metadata = {
@@ -102,11 +103,7 @@ export default function TermsOfUsePage() {
 
       <LegalSection number={8} title="Contact">
         <p>
-          Questions about these Terms? Email{" "}
-          <a href="mailto:oliversimonjarvis@gmail.com">
-            oliversimonjarvis@gmail.com
-          </a>
-          .
+          Questions about these Terms? Email <ContactEmail />.
         </p>
       </LegalSection>
     </article>
