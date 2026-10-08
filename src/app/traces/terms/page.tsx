@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function TermsOfUsePage() {
   return (
     <article className={styles.card}>
-      <LegalPageHeader title="Terms of Use" effectiveDate="July 12, 2026" />
+      <LegalPageHeader title="Terms of Use" effectiveDate="October 8, 2026" />
 
       <p className={styles.intro}>
         These Terms of Use (“Terms”) govern your use of the Traces app. By
@@ -27,17 +27,24 @@ export default function TermsOfUsePage() {
         </p>
       </LegalSection>
 
-      <LegalSection number={2} title="Subscriptions (Traces Pro)">
+      <LegalSection number={2} title="Traces Pro">
         <p>
-          Traces offers an auto-renewable subscription, Traces Pro, which
-          unlocks the full puzzle archive and additional features.
+          Traces Pro unlocks the full puzzle archive. It is available as an
+          auto-renewable subscription or as a one-time lifetime purchase. The
+          two daily puzzles stay free.
         </p>
         <ul className={styles.list}>
           <li>
             <strong>Pricing:</strong> Traces Pro is available as a monthly
-            subscription ($2.99/month) or an annual subscription
-            ($29.99/year). Prices may vary by region and are shown in the app
-            before you purchase.
+            subscription ($0.99/month), a yearly subscription ($4.99/year), or
+            a one-time lifetime purchase ($12.99). Prices may vary by region
+            and are shown in the app before you purchase.
+          </li>
+          <li>
+            <strong>Lifetime purchase:</strong> The lifetime purchase is a
+            one-time payment, not a subscription, and never renews. It unlocks
+            Traces Pro permanently for your Apple ID, and you can restore it on
+            your other devices with Restore on the Traces Pro screen.
           </li>
           <li>
             <strong>Free trial:</strong> New subscribers may be offered a
