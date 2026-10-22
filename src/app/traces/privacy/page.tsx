@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <article className={styles.card}>
-      <LegalPageHeader title="Privacy Policy" effectiveDate="July 12, 2026" />
+      <LegalPageHeader title="Privacy Policy" effectiveDate="October 22, 2026" />
 
       <p className={styles.intro}>
         Traces is a word puzzle game. This Privacy Policy explains what
@@ -60,6 +60,15 @@ export default function PrivacyPolicyPage() {
             .
           </li>
           <li>
+            <strong>Usage data:</strong> We record a few key moments of how
+            the app is used — for example opening the app, finishing a
+            tutorial, completing a puzzle, or viewing the subscription screen
+            — associated with your anonymous identifier and stored with our
+            backend provider, Convex. We use it only to understand how the app
+            is used and to improve it. It is not shared with anyone and not
+            used for advertising or tracking.
+          </li>
+          <li>
             <strong>Feedback:</strong> If you send feedback through the app,
             we receive the message you write. Please don’t include sensitive
             personal information in feedback.
@@ -89,18 +98,18 @@ export default function PrivacyPolicyPage() {
 
       <LegalSection number={4} title="How your information is used">
         <p>
-          Solely to operate the game: save your progress, show your
-          statistics, provide and verify your subscription, and respond to
-          your feedback.
+          To operate the game — save your progress, show your statistics,
+          provide and verify your subscription, and respond to your feedback
+          — and to understand how the app is used so we can improve it.
         </p>
       </LegalSection>
 
       <LegalSection number={5} title="Data retention and deletion">
         <p>
-          Because your account is anonymous, the simplest way to delete your
-          data is to delete the app. To request deletion of gameplay data
-          associated with your device, contact us at{" "}
-          <ContactEmail />.
+          Your data is kept with your anonymous account until you ask us to
+          delete it; deleting the app does not delete it. To delete the data
+          associated with your anonymous account, contact us at{" "}
+          <ContactEmail /> and we’ll remove it.
         </p>
       </LegalSection>
 
