@@ -1,168 +1,163 @@
-"use client";
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Github, GithubIcon, Twitter } from "lucide-react";
+import { Nunito } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import Parser from 'rss-parser';
+import { Github, Twitter } from "lucide-react";
+import styles from "./home.module.css";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
+  variable: "--font-nunito",
+});
+
+const APP_STORE_URL = "https://apps.apple.com/app/id6790066066";
 
 export default function Home() {
-  const [openModal, setOpenModal] = useState<string | null>(null);
-
-  const [latestArticle, setLatestArticle] = useState<{title: string; link: string}|null>(null);
-
-  useEffect(() => {
-    async function fetchArticle() {
-      try {
-        const response = await fetch('/api/fetchsubstack');
-        const data = await response.json();
-        setLatestArticle(data.latestArticle);
-        console.log(data);
-      } catch (error) {
-        console.error('Error fetching latest Substack article:', error);
-      }
-    }
-
-    fetchArticle();
-  }, []);
-
-  const projects = [
-    {
-      id: "representation-engineer",
-      title: "Representation Engineer for Reasoning",
-      description: "Using representation engineering techniques to adjust the reasoning capabilities of LLMs",
-      technologies: ["PyTorch", "LLM", "GenAI", "Thesis"],
-    },
-    {
-      id: "project-alpha",
-      title: "Project Alpha",
-      description: "An AI-powered task management system",
-      technologies: ["React", "Node.js", "MongoDB"],
-    },
-    {
-      id: "project-beta",
-      title: "Project Beta",
-      description: "Another exciting project",
-      technologies: ["React", "Node.js", "MongoDB"],
-    },
-  ];
-
   return (
-    <main className="flex min-h-screen flex-col items-left p-8">
-      <div className="text-left mb-8 flex flex-col items-left">
-        <Image
-          src="/profile.png"
-          alt="Oliver Jarvis"
-          width={200}
-          height={200}
-          className="rounded-full mb-4"
-        />
-        <h1 className="text-3xl font-bold">Oliver Jarvis</h1>
-        <p className="text-lg mt-2 text-gray-600">
-          <span className="font-semibold">MSc Data Science</span> @ IT University of Copenhagen
-          <br />
-          <span className="font-semibold">BSc Cognitive Science and Mathematics</span> @ Aarhus University, DK
-        </p>
-        <div className="flex flex-col mt-4 space-y-2">
-          <Link href="https://twitter.com/olliesjarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-blue-400 hover:text-blue-500 transition-colors">
-            <Twitter size={20} />
-            <span>twitter.com/olliesjarvis</span>
-          </Link>
-          <Link href="https://github.com/oliverjarvis" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors">
-            <Github size={20} />
-            <span>github.com/oliverjarvis</span>
-          </Link>
-        </div>
-      </div>
-      
-      <p className="max-w-2xl text-left mb-8">
-        I&apos;m a passionate data scientist, web developer, and full-stack engineer with a love for
-        working on new projects and exploring various programming challenges. My expertise spans
-        across data analysis, web technologies, and end-to-end system development. I&apos;m particularly
-        enthusiastic about conducting research and engaging in independent studies, always seeking
-        to expand my knowledge and push the boundaries of what&apos;s possible in technology.
-      </p>
-      
-      {latestArticle && (
-        <section className="w-full max-w-4xl mb-8">
-          <h2 className="text-2xl font-semibold mb-4 text-left">Latest Substack Article</h2>
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>{latestArticle.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Link href={latestArticle.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                Read the full article
-              </Link>
-            </CardContent>
-          </Card>
+    <div className={`${styles.page} ${nunito.variable}`}>
+      <main className={styles.main}>
+        <header className={styles.intro}>
+          <Image
+            src="/profile.png"
+            alt="Oliver Jarvis"
+            width={112}
+            height={112}
+            className={styles.avatar}
+            priority
+          />
+          <h1 className={styles.name}>Oliver Jarvis</h1>
+          <p className={styles.role}>
+            Senior AI Engineer at{" "}
+            <a href="https://www.simply.tv" target="_blank" rel="noopener noreferrer">
+              Simply.TV
+            </a>
+          </p>
+          <nav className={styles.socials} aria-label="Elsewhere">
+            <a href="https://github.com/oliverjarvis" target="_blank" rel="noopener noreferrer">
+              <Github size={18} aria-hidden />
+              GitHub
+            </a>
+            <a href="https://twitter.com/olliesjarvis" target="_blank" rel="noopener noreferrer">
+              <Twitter size={18} aria-hidden />
+              Twitter
+            </a>
+          </nav>
+        </header>
+
+        <section className={styles.section} aria-labelledby="work">
+          <h2 id="work" className={styles.sectionLabel}>
+            Work
+          </h2>
+          <a
+            href="https://www.simply.tv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${styles.card} ${styles.workCard}`}
+          >
+            <div className={styles.logoBadge}>
+              <Image
+                src="/home/simplytv.webp"
+                alt="Simply.TV"
+                width={780}
+                height={280}
+                className={styles.logo}
+              />
+            </div>
+            <div className={styles.cardBody}>
+              <h3 className={styles.cardTitle}>Senior AI Engineer, Simply.TV</h3>
+              <p className={styles.cardText}>
+                Simply.TV provides TV metadata on a global scale, across linear
+                TV and streaming.
+              </p>
+            </div>
+          </a>
         </section>
-      )}
-      
-      <section className="w-full max-w-4xl">
-        <h2 className="text-2xl font-semibold mb-6 text-left">Featured Projects</h2>
-        <div className="flex flex-col space-y-6 w-full">
-          {projects.map((project) => (
-            <Dialog key={project.id} open={openModal === project.id} onOpenChange={(open) => setOpenModal(open ? project.id : null)}>
-              <DialogTrigger asChild>
-                <Card className="w-full cursor-pointer">
-                  <div className="flex">
-                    <CardHeader className="flex-1">
-                      <CardTitle>{project.title}</CardTitle>
-                      <CardDescription>{project.description}</CardDescription>
-                    </CardHeader>
-                    <div className="flex-1 flex items-center justify-center ">
-                      <div className="flex flex-wrap gap-2 ">
-                        {project.technologies.map((tech, index) => (
-                          <div key={index} className="px-2 py-1 bg-gray-200 rounded-full text-sm">
-                            {tech}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+
+        <section className={styles.section} aria-labelledby="projects">
+          <h2 id="projects" className={styles.sectionLabel}>
+            Projects
+          </h2>
+
+          <div className={styles.projects}>
+            <article className={styles.card}>
+              <div className={`${styles.cardMedia} ${styles.wpMedia}`}>
+                <Image
+                  src="/home/wp-traces.webp"
+                  alt="Traces: trace words through the letters"
+                  width={762}
+                  height={358}
+                  className={styles.wpCard}
+                />
+                <Image
+                  src="/home/wp-hideseek.webp"
+                  alt="Hide & Seek: find a famous place using clues and a real map"
+                  width={762}
+                  height={358}
+                  className={styles.wpCard}
+                />
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.titleRow}>
+                  <Image
+                    src="/home/wordsplaces-icon.webp"
+                    alt=""
+                    width={44}
+                    height={44}
+                    className={styles.appIcon}
+                  />
+                  <div>
+                    <h3 className={styles.cardTitle}>Words&amp;Places</h3>
+                    <p className={styles.cardMeta}>iPhone app</p>
                   </div>
-                </Card>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{project.title}</DialogTitle>
-                  <DialogDescription>{project.description}</DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {project.technologies.map((tech, index) => (
-                    <div key={index} className="px-2 py-1 bg-gray-200 rounded-full text-sm">
-                      {tech}
-                    </div>
-                  ))}
                 </div>
-                {/* Add more detailed project information here */}
-              </DialogContent>
-            </Dialog>
-          ))}
-        </div>
-      </section>
-      
-      <section className="mt-12 ">
-        <h2 className="text-2xl font-semibold mb-6 text-left">More Projects</h2>
-        <Tabs defaultValue="web" className="w-full">
-          <TabsList className="w-full max-w-4xl">
-            <TabsTrigger value="data-science" className="flex-1">Data Science</TabsTrigger>
-            <TabsTrigger value="web" className="flex-1">Web</TabsTrigger>
-            <TabsTrigger value="mobile" className="flex-1">Mobile</TabsTrigger>
-            <TabsTrigger value="games" className="flex-1">Games</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </section>
-    </main>
+                <p className={styles.cardText}>
+                  Daily puzzles for words and places. In <strong>Traces</strong>
+                  {" "}you find hidden words by tracing paths through the
+                  letters; in <strong>Hide &amp; Seek</strong>{" "}you track down
+                  a famous place using clues and a real map.
+                </p>
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.button}
+                >
+                  Get it on the App Store →
+                </a>
+              </div>
+            </article>
+
+            <article className={styles.card}>
+              <Link href="/immersionmode" className={styles.cardMedia}>
+                <Image
+                  src="/home/immersionmode.webp"
+                  alt="A Nintendo 3DS running ImmersionMode, with the game's dialogue on the bottom screen"
+                  width={960}
+                  height={504}
+                  className={styles.cover}
+                />
+              </Link>
+              <div className={styles.cardBody}>
+                <div className={styles.titleRow}>
+                  <div>
+                    <h3 className={styles.cardTitle}>ImmersionMode</h3>
+                    <p className={styles.cardMeta}>A Pokémon mod for learning Japanese</p>
+                  </div>
+                </div>
+                <p className={styles.cardText}>
+                  I turned Pokémon Ultra Moon into a Japanese tutor. On a real
+                  3DS, every line of the game appears on the bottom screen:
+                  tap a word to look it up, ask Claude about the grammar, and
+                  hear every line read aloud.
+                </p>
+                <Link href="/immersionmode" className={styles.button}>
+                  See how it works →
+                </Link>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
