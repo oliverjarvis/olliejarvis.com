@@ -127,6 +127,22 @@ const stats = [
 export default function ImmersionModePage() {
   return (
     <div className={styles.page}>
+      <nav className={styles.topBar} aria-label="Site">
+        <Link href="/" className={styles.homeLink}>
+          <Image
+            src="/profile.png"
+            alt=""
+            width={32}
+            height={32}
+            className={styles.avatar}
+          />
+          <span>Oliver Jarvis</span>
+        </Link>
+        <Link href="/" className={styles.backLink}>
+          ← All projects
+        </Link>
+      </nav>
+
       <header className={styles.hero}>
         <p className={styles.eyebrow}>A Pokémon mod for learning Japanese</p>
         <h1 className={styles.title}>

@@ -35,6 +35,51 @@
   font-weight: 800;
 }
 
+/* Top bar */
+
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem max(1rem, calc((100% - 980px) / 2));
+  background: color-mix(in srgb, var(--im-bg) 85%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--im-border);
+}
+
+.homeLink,
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--im-text);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.homeLink:hover span,
+.backLink:hover {
+  color: var(--im-accent);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.backLink {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--im-muted);
+}
+
 /* Hero */
 
 .hero {
