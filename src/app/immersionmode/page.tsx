@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./immersionmode.module.css";
 
 type Step = {
@@ -138,9 +139,12 @@ export default function ImmersionModePage() {
           />
           <span>Oliver Jarvis</span>
         </Link>
-        <Link href="/" className={styles.backLink}>
-          ← All projects
-        </Link>
+        <div className={styles.topBarRight}>
+          <Link href="/" className={styles.backLink}>
+            ← All projects
+          </Link>
+          <ThemeToggle />
+        </div>
       </nav>
 
       <header className={styles.hero}>

@@ -2,6 +2,7 @@ import { Nunito } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { Github, Twitter } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./home.module.css";
 
 const nunito = Nunito({
@@ -15,6 +16,9 @@ const APP_STORE_URL = "https://apps.apple.com/app/id6790066066";
 export default function Home() {
   return (
     <div className={`${styles.page} ${nunito.variable}`}>
+      <div className={styles.toolbar}>
+        <ThemeToggle />
+      </div>
       <main className={styles.main}>
         <header className={styles.intro}>
           <Image

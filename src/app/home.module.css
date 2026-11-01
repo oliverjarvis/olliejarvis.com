@@ -8,6 +8,10 @@
   --h-accent-soft: #f3dfd3;
   --h-shadow: 0 24px 48px -30px rgba(60, 40, 20, 0.35), 0 2px 6px rgba(60, 40, 20, 0.05);
 
+  --theme-toggle-border: var(--h-border);
+  --theme-toggle-hover: var(--h-accent-soft);
+
+  position: relative;
   min-height: 100vh;
   background: var(--h-bg);
   color: var(--h-text);
@@ -18,22 +22,43 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .page {
-    --h-bg: #17140f;
-    --h-card: #211d17;
-    --h-text: #f4eee4;
-    --h-muted: #a99f91;
-    --h-border: #383128;
-    --h-accent: #ec8a62;
-    --h-accent-soft: #3a2519;
-    --h-shadow: 0 24px 48px -30px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
+  :global(html:not([data-theme="light"])) .page {
+    --h-bg: #0e1014;
+    --h-card: #161920;
+    --h-text: #e9ebf0;
+    --h-muted: #959cab;
+    --h-border: #272b34;
+    --h-accent: #f08a6c;
+    --h-accent-soft: rgba(240, 138, 108, 0.12);
+    --h-shadow: 0 24px 48px -30px rgba(0, 0, 0, 0.9), 0 2px 6px rgba(0, 0, 0, 0.4);
   }
+}
+
+:global(html[data-theme="dark"]) .page {
+    --h-bg: #0e1014;
+    --h-card: #161920;
+    --h-text: #e9ebf0;
+    --h-muted: #959cab;
+    --h-border: #272b34;
+    --h-accent: #f08a6c;
+    --h-accent-soft: rgba(240, 138, 108, 0.12);
+    --h-shadow: 0 24px 48px -30px rgba(0, 0, 0, 0.9), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .main {
   max-width: 960px;
   margin: 0 auto;
   padding: clamp(3rem, 9vw, 5.5rem) 1rem 4rem;
+}
+
+/* Theme toggle */
+
+.toolbar {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  color: var(--h-muted);
 }
 
 /* Intro */
@@ -170,9 +195,13 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .wpMedia {
-    background: #2a2420;
+  :global(html:not([data-theme="light"])) .wpMedia {
+    background: #1b1f27;
   }
+}
+
+:global(html[data-theme="dark"]) .wpMedia {
+    background: #1b1f27;
 }
 
 .wpCard {
@@ -245,9 +274,13 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .button {
-    color: #1d1b18;
+  :global(html:not([data-theme="light"])) .button {
+    color: #0e1014;
   }
+}
+
+:global(html[data-theme="dark"]) .button {
+    color: #0e1014;
 }
 
 .button:hover {
