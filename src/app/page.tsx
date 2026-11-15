@@ -13,6 +13,51 @@ const nunito = Nunito({
 
 const APP_STORE_URL = "https://apps.apple.com/app/id6790066066";
 
+const TOOLS = [
+  {
+    name: "Dreamux",
+    meta: "A Mac terminal for coding agents",
+    url: "https://github.com/oliverjarvis/dreamux",
+    image: "/home/dreamux.webp",
+    imageAlt: "Dreamux: design. dream. build.",
+    text:
+      "A native macOS terminal multiplexer built on Ghostty, made for working " +
+      "with coding agents. Each project keeps its repos and terminals together, " +
+      "and you can describe a small tool in a sentence and have Claude build it " +
+      "as an applet inside the app.",
+  },
+  {
+    name: "Huggable",
+    meta: "A Claude Code plugin for design systems",
+    url: "https://github.com/oliverjarvis/huggable",
+    image: "/home/huggable.webp",
+    imageAlt: "Huggable: hugs for every moment",
+    text:
+      "AI-made interfaces tend to all look the same. Huggable has Claude build a " +
+      "distinctive design system for a React or React Native app and stick to " +
+      "it: lint rules and code generation keep every screen on the system, and " +
+      "it can move an existing app onto one step by step.",
+  },
+];
+
+const REPOS = [
+  {
+    name: "Pokémon Ultra Sun decompilation",
+    url: "https://github.com/oliverjarvis/pokemonultrasun",
+    text: "Rebuilds the 3DS game from source, byte-identical to the retail cartridge.",
+  },
+  {
+    name: "agentic-setup",
+    url: "https://github.com/oliverjarvis/agentic-setup",
+    text: "My Claude Code setup as a plugin marketplace, installed with one line.",
+  },
+  {
+    name: "grid-cells-tf2",
+    url: "https://github.com/oliverjarvis/grid-cells-tf2",
+    text: "DeepMind's grid-cell navigation paper (Nature, 2018), ported to TensorFlow 2.",
+  },
+];
+
 export default function Home() {
   return (
     <div className={`${styles.page} ${nunito.variable}`}>
@@ -159,7 +204,65 @@ export default function Home() {
                 </Link>
               </div>
             </article>
+
+            {TOOLS.map((tool) => (
+              <article key={tool.name} className={styles.card}>
+                <a
+                  href={tool.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.cardMedia}
+                >
+                  <Image
+                    src={tool.image}
+                    alt={tool.imageAlt}
+                    width={1200}
+                    height={480}
+                    className={styles.banner}
+                  />
+                </a>
+                <div className={styles.cardBody}>
+                  <div>
+                    <h3 className={styles.cardTitle}>{tool.name}</h3>
+                    <p className={styles.cardMeta}>{tool.meta}</p>
+                  </div>
+                  <p className={styles.cardText}>{tool.text}</p>
+                  <a
+                    href={tool.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.button}
+                  >
+                    View on GitHub →
+                  </a>
+                </div>
+              </article>
+            ))}
           </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="more">
+          <h2 id="more" className={styles.sectionLabel}>
+            More on GitHub
+          </h2>
+          <ul className={styles.repoList}>
+            {REPOS.map((repo) => (
+              <li key={repo.name}>
+                <a
+                  href={repo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.repo}
+                >
+                  <span className={styles.repoName}>{repo.name}</span>
+                  <span className={styles.repoText}>{repo.text}</span>
+                  <span className={styles.repoArrow} aria-hidden>
+                    →
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </section>
       </main>
     </div>
