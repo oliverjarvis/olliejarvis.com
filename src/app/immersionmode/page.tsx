@@ -254,11 +254,6 @@ export default function ImmersionModePage() {
         <p>
           Made by <Link href="/">Oliver Jarvis</Link>.
         </p>
-        <p className={styles.disclaimer}>
-          ImmersionMode is a personal fan project. It isn&apos;t affiliated
-          with or endorsed by Nintendo, Game Freak or The Pokémon Company, and
-          no game files are shared here.
-        </p>
       </footer>
     </div>
   );
