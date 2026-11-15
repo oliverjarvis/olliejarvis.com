@@ -129,22 +129,20 @@ export default function Home() {
 
           <div className={styles.projects}>
             <article className={styles.card}>
-              <div className={`${styles.cardMedia} ${styles.wpMedia}`}>
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.cardMedia}
+              >
                 <Image
-                  src="/home/wp-traces.webp"
-                  alt="Traces: trace words through the letters"
-                  width={762}
-                  height={358}
-                  className={styles.wpCard}
+                  src="/home/wordsplaces-cover.webp"
+                  alt="Three Words&Places screens: tracing the word WORDS in Traces, a Hide & Seek clue on a map of Peru, and the Machu Picchu result"
+                  width={1200}
+                  height={630}
+                  className={styles.cover}
                 />
-                <Image
-                  src="/home/wp-hideseek.webp"
-                  alt="Hide & Seek: find a famous place using clues and a real map"
-                  width={762}
-                  height={358}
-                  className={styles.wpCard}
-                />
-              </div>
+              </a>
               <div className={styles.cardBody}>
                 <div className={styles.titleRow}>
                   <Image
